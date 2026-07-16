@@ -1058,6 +1058,48 @@ body, header, aside, main, .card, .input-field, .btn-action, .topup-choice-btn, 
     box-shadow: 0 0 10px var(--primary);
 }
 
+/* Operator and Bank badges with official brand colors */
+.op-logo-badge {
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    transition: var(--transition-smooth);
+    cursor: default;
+}
+
+.op-logo-badge.telkomsel:hover { background: #E60000; border-color: transparent; box-shadow: 0 0 12px rgba(230, 0, 0, 0.5); }
+.op-logo-badge.indosat:hover { background: #F2B705; color: black; border-color: transparent; box-shadow: 0 0 12px rgba(242, 183, 5, 0.5); }
+.op-logo-badge.xl:hover { background: #0052A3; border-color: transparent; box-shadow: 0 0 12px rgba(0, 82, 163, 0.5); }
+.op-logo-badge.axis:hover { background: #800080; border-color: transparent; box-shadow: 0 0 12px rgba(128, 0, 128, 0.5); }
+.op-logo-badge.tri:hover { background: #FF007F; border-color: transparent; box-shadow: 0 0 12px rgba(255, 0, 127, 0.5); }
+.op-logo-badge.smartfren:hover { background: #E1251B; border-color: transparent; box-shadow: 0 0 12px rgba(225, 37, 27, 0.5); }
+.op-logo-badge.pln:hover { background: #0099FF; border-color: transparent; box-shadow: 0 0 12px rgba(0, 153, 255, 0.5); }
+.op-logo-badge.gopay:hover { background: #00AED6; border-color: transparent; box-shadow: 0 0 12px rgba(0, 174, 214, 0.5); }
+.op-logo-badge.dana:hover { background: #108EE9; border-color: transparent; box-shadow: 0 0 12px rgba(16, 142, 233, 0.5); }
+.op-logo-badge.ovo:hover { background: #4C2A86; border-color: transparent; box-shadow: 0 0 12px rgba(76, 42, 134, 0.5); }
+.op-logo-badge.shopeepay:hover { background: #EE4D2D; border-color: transparent; box-shadow: 0 0 12px rgba(238, 77, 45, 0.5); }
+
+.bank-logo-badge {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    letter-spacing: 0.5px;
+    cursor: default;
+}
+
+.bank-logo-badge.bca { border-color: #0052A3; color: #60a5fa; }
+.bank-logo-badge.mandiri { border-color: #F2B705; color: #fbbf24; }
+.bank-logo-badge.bri { border-color: #108EE9; color: #38bdf8; }
+.bank-logo-badge.bni { border-color: #EE4D2D; color: #f87171; }
+
 /* Hero Section Responsiveness */
 @media (max-width: 900px) {
     .landing-hero {

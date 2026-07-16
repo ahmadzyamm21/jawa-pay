@@ -1524,10 +1524,23 @@ function renderLandingPrices() {
                 currentLandingOperator = operators[0];
             }
             
+            const friendlyNames = {
+                telkomsel: 'TELKOMSEL',
+                indosat: 'INDOSAT OOREDOO',
+                xl: 'XL AXIATA',
+                axis: 'AXIS',
+                tri: 'TRI (3)',
+                smartfren: 'SMARTFREN',
+                gopay: 'GOPAY',
+                ovo: 'OVO',
+                dana: 'DANA',
+                shopeepay: 'SHOPEEPAY'
+            };
+            
             operators.forEach(op => {
                 const btn = document.createElement('button');
                 btn.className = `operator-pill-btn ${op === currentLandingOperator ? 'active' : ''}`;
-                btn.textContent = op.toUpperCase();
+                btn.textContent = friendlyNames[op] || op.toUpperCase();
                 btn.onclick = () => {
                     currentLandingOperator = op;
                     renderLandingPrices();
