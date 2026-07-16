@@ -248,6 +248,14 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
     }
 });
 
+// Get Payment Gateway Client Config (Public)
+app.get('/api/config/payment', (req, res) => {
+    res.json({
+        clientKey: process.env.MIDTRANS_CLIENT_KEY,
+        isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true'
+    });
+});
+
 // Update flat markup (Protected)
 app.post('/api/auth/profile/update-markup', authenticateToken, async (req, res) => {
     const { markupFlat } = req.body;

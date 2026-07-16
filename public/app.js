@@ -1358,9 +1358,28 @@ function updateAccentSelectionUI(accent) {
     });
 }
 
+async function loadMidtransScript() {
+    try {
+        const res = await fetch('/api/config/payment');
+        const config = await res.json();
+        
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = config.isProduction 
+            ? 'https://app.midtrans.com/snap/snap.js' 
+            : 'https://app.sandbox.midtrans.com/snap/snap.js';
+        script.setAttribute('data-client-key', config.clientKey);
+        document.head.appendChild(script);
+        console.log(`[Midtrans] Loaded dynamically in ${config.isProduction ? 'PRODUCTION' : 'SANDBOX'} mode.`);
+    } catch (err) {
+        console.error('Failed to load Midtrans script:', err);
+    }
+}
+
 // Check authorization on load
 document.addEventListener('DOMContentLoaded', () => {
     applyThemeAndAccent();
+    loadMidtransScript();
     setupListeners();
     checkAuth();
 });
