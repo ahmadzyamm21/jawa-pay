@@ -353,10 +353,17 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
                     trx_id: 'TRX' + Math.floor(Math.random() * 9000000 + 1000000)
                 };
             } else {
+                // Map local fallback SKUs to valid Sandbox SKUs
+                let actualSku = buyer_sku_code;
+                if (actualSku === 'telkomsel5k') actualSku = 'tele5';
+                else if (actualSku === 'telkomsel10k') actualSku = 'tele10';
+                else if (actualSku === 'xl5k') actualSku = 'xld5';
+                else if (actualSku === 'xl10k') actualSku = 'xld10';
+                
                 const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id);
                 const response = await axios.post(`${DIGIFLAZZ_BASE_URL}/transaction`, {
                     username: DIGIFLAZZ_USERNAME,
-                    buyer_sku_code: buyer_sku_code,
+                    buyer_sku_code: actualSku,
                     customer_no: customer_no,
                     ref_id: ref_id,
                     sign: sign
@@ -545,10 +552,17 @@ app.post('/api/payment/simulate-callback', async (req, res) => {
                 trx_id: 'TRX' + Math.floor(Math.random() * 9000000 + 1000000)
             };
         } else {
+            // Map local fallback SKUs to valid Sandbox SKUs
+            let actualSku = buyer_sku_code;
+            if (actualSku === 'telkomsel5k') actualSku = 'tele5';
+            else if (actualSku === 'telkomsel10k') actualSku = 'tele10';
+            else if (actualSku === 'xl5k') actualSku = 'xld5';
+            else if (actualSku === 'xl10k') actualSku = 'xld10';
+            
             const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + merchant_ref);
             const response = await axios.post(`${DIGIFLAZZ_BASE_URL}/transaction`, {
                 username: DIGIFLAZZ_USERNAME,
-                buyer_sku_code: buyer_sku_code,
+                buyer_sku_code: actualSku,
                 customer_no: customer_no,
                 ref_id: merchant_ref,
                 sign: sign
