@@ -19,7 +19,9 @@ let state = {
     transactions: [],
     subCategory: '',
     products: null,
-    paymentChannels: []
+    paymentChannels: [],
+    appliedVoucherCode: null,
+    voucherDiscount: 0
 };
 
 // Global reference for active Tripay checkout
@@ -131,6 +133,13 @@ const DOM = {
     subCategoryWrapper: document.getElementById('subcategory-wrapper'),
     subCategorySelect: document.getElementById('subcategory-select'),
     subCategoryLabel: document.getElementById('subcategory-label'),
+
+    // Voucher elements
+    voucherInput: document.getElementById('checkout-voucher-code'),
+    btnApplyVoucher: document.getElementById('btn-apply-voucher'),
+    voucherStatusMsg: document.getElementById('voucher-status-msg'),
+    discountRow: document.getElementById('checkout-discount-row'),
+    discountVal: document.getElementById('checkout-discount-val'),
 };
 
 // ---------------- AUTHENTICATION CLIENT FLOW ----------------
@@ -363,13 +372,7 @@ function selectPaymentMethod(method, cardElement) {
     cardElement.classList.add('selected');
     state.selectedPaymentMethod = method;
     
-    if (state.selectedProduct) {
-        let total = state.selectedProduct.priceAgent;
-        if (method !== 'balance') {
-            total += 2000; // Flat Rp 2.000 fee for Midtrans sandbox gateway simulation
-        }
-        DOM.checkoutTotal.textContent = formatRupiah(total);
-    }
+    updateCheckoutTotalDisplay();
 }
 
 function renderProducts() {
@@ -461,13 +464,14 @@ function selectProduct(product) {
     DOM.checkoutPriceSell.textContent = formatRupiah(calculatedSell);
     DOM.checkoutProfit.textContent = formatRupiah(markup);
     
-    let total = product.priceAgent;
-    if (state.selectedPaymentMethod !== 'balance') {
-        const fee = state.selectedPaymentMethod === 'qris' ? Math.round(total * 0.007) : 1500;
-        total += fee;
-    }
-    DOM.checkoutTotal.textContent = formatRupiah(total);
+    // Clear voucher input and state when new product is selected
+    state.appliedVoucherCode = null;
+    state.voucherDiscount = 0;
+    if (DOM.voucherInput) DOM.voucherInput.value = '';
+    if (DOM.discountRow) DOM.discountRow.style.display = 'none';
+    if (DOM.voucherStatusMsg) DOM.voucherStatusMsg.style.display = 'none';
 
+    updateCheckoutTotalDisplay();
     updatePayButtonState();
 }
 
@@ -771,6 +775,10 @@ function setupListeners() {
             if (privacyM) privacyM.classList.add('show');
         });
     }
+
+    if (DOM.btnApplyVoucher) {
+        DOM.btnApplyVoucher.addEventListener('click', handleApplyVoucher);
+    }
 }
 
 function setupSubCategorySelect(type) {
@@ -834,10 +842,11 @@ function closeAllModals() {
 // Payment Flow Execution
 async function processPayment() {
     const cost = state.selectedProduct.priceAgent;
+    const finalCost = cost - state.voucherDiscount;
     const method = state.selectedPaymentMethod;
 
     if (method === 'balance') {
-        if (state.balance < cost) {
+        if (state.balance < finalCost) {
             alert('Saldo Agen Anda tidak mencukupi. Silakan lakukan Top Up terlebih dahulu.');
             return;
         }
@@ -868,7 +877,8 @@ async function executeDirectTransaction() {
             body: JSON.stringify({
                 buyer_sku_code: state.selectedProduct.buyer_sku_code,
                 customer_no: state.targetNumber,
-                ref_id: ref_id
+                ref_id: ref_id,
+                voucherCode: state.appliedVoucherCode
             })
         });
 
@@ -888,11 +898,13 @@ async function executeDirectTransaction() {
                 productName: state.selectedProduct.name,
                 target: state.targetNumber,
                 priceAgent: state.selectedProduct.priceAgent,
-                priceSell: state.selectedProduct.priceSell,
+                priceSell: state.selectedProduct.priceSell - state.voucherDiscount, // Adjusted by discount
                 profit: profit,
                 paymentMethod: 'Saldo Agen',
                 status: data.status,
-                sn: data.sn
+                sn: data.sn,
+                voucherCode: state.appliedVoucherCode,
+                discountApplied: state.voucherDiscount
             };
 
             showReceipt(trx);
@@ -916,8 +928,8 @@ async function executeMidtransPaymentRequest() {
     const markup = getMarkupFlat();
     const calculatedSell = state.selectedProduct.priceAgent + markup;
     
-    // Total gross amount including dynamic Flat Rp 2.000 fee
-    const totalAmount = state.selectedProduct.priceAgent + 2000;
+    // Total gross amount including dynamic Flat Rp 2.000 fee and deducting discount
+    const totalAmount = Math.max(0, state.selectedProduct.priceAgent - state.voucherDiscount) + 2000;
 
     DOM.qrisAmount.textContent = formatRupiah(totalAmount);
     DOM.qrisModal.classList.add('show');
@@ -933,7 +945,8 @@ async function executeMidtransPaymentRequest() {
                 method: 'midtrans',
                 amount: state.selectedProduct.priceAgent,
                 customer_phone: state.targetNumber,
-                buyer_sku_code: state.selectedProduct.buyer_sku_code
+                buyer_sku_code: state.selectedProduct.buyer_sku_code,
+                voucherCode: state.appliedVoucherCode
             })
         });
 
@@ -947,8 +960,10 @@ async function executeMidtransPaymentRequest() {
                 paymentName: 'Midtrans Snap',
                 totalAmount: totalAmount,
                 productName: state.selectedProduct.name,
-                priceSell: calculatedSell,
-                priceAgent: state.selectedProduct.priceAgent
+                priceSell: calculatedSell - state.voucherDiscount, // Adjusted by discount
+                priceAgent: state.selectedProduct.priceAgent,
+                voucherCode: state.appliedVoucherCode,
+                discountApplied: state.voucherDiscount
             };
 
             // Trigger Midtrans Snap Popup
@@ -1045,7 +1060,9 @@ async function simulateWebhookCallback() {
                 profit: activeTripayInvoice.priceSell - activeTripayInvoice.priceAgent,
                 paymentMethod: activeTripayInvoice.paymentName,
                 status: data.status,
-                sn: data.sn
+                sn: data.sn,
+                voucherCode: activeTripayInvoice.voucherCode,
+                discountApplied: activeTripayInvoice.discountApplied
             };
 
             showReceipt(trx);
@@ -1111,9 +1128,10 @@ function renderTransactions() {
 
     state.transactions.forEach(trx => {
         const tr = document.createElement('tr');
+        const displayTime = trx.time || (trx.createdAt ? new Date(trx.createdAt).toLocaleString('id-ID') : '-');
         tr.innerHTML = `
             <td style="font-weight: 600;">${trx.id}</td>
-            <td style="font-size: 12px; color: var(--text-secondary);">${trx.time}</td>
+            <td style="font-size: 12px; color: var(--text-secondary);">${displayTime}</td>
             <td>
                 <div style="font-weight: 500;">${trx.productName}</div>
                 <div style="font-size: 11px; color: var(--text-muted);">${trx.target}</div>
@@ -1138,7 +1156,7 @@ function renderTransactions() {
 
 function showReceipt(trx) {
     DOM.receiptTrxId.textContent = trx.id;
-    DOM.receiptTime.textContent = trx.time;
+    DOM.receiptTime.textContent = trx.time || (trx.createdAt ? new Date(trx.createdAt).toLocaleString('id-ID') : '-');
     DOM.receiptTarget.textContent = trx.target;
     DOM.receiptProduct.textContent = trx.productName;
     DOM.receiptPrice.textContent = formatRupiah(trx.priceSell);
@@ -1165,6 +1183,23 @@ function showReceipt(trx) {
         
         const statusRow = DOM.receiptStatus.closest('.receipt-row');
         statusRow.parentNode.insertBefore(snRow, statusRow);
+    }
+
+    // Dynamic voucher discount display on receipt
+    const discountRowId = 'receipt-discount-row';
+    let discountRow = document.getElementById(discountRowId);
+    if (discountRow) discountRow.remove();
+
+    if (trx.discountApplied && trx.discountApplied > 0) {
+        discountRow = document.createElement('div');
+        discountRow.id = discountRowId;
+        discountRow.className = 'receipt-row';
+        discountRow.style.fontSize = '12px';
+        discountRow.style.color = '#059669';
+        discountRow.innerHTML = `<span>Diskon Voucher (${trx.voucherCode}):</span><span class="receipt-val">-${formatRupiah(trx.discountApplied)}</span>`;
+        
+        const totalBox = DOM.receiptPrice.closest('.receipt-total-box');
+        totalBox.parentNode.insertBefore(discountRow, totalBox);
     }
 
     DOM.receiptModal.classList.add('show');
@@ -1525,6 +1560,93 @@ function renderLandingPrices() {
         `;
         rowsContainer.appendChild(tr);
     });
+}
+
+// ---------------- VOUCHER FUNCTIONALITY ----------------
+
+async function handleApplyVoucher() {
+    if (!state.selectedProduct) {
+        alert('Silakan pilih produk terlebih dahulu sebelum menerapkan kupon.');
+        return;
+    }
+    const code = DOM.voucherInput.value.trim();
+    if (!code) {
+        alert('Masukkan kode voucher terlebih dahulu.');
+        return;
+    }
+
+    DOM.btnApplyVoucher.disabled = true;
+    DOM.btnApplyVoucher.textContent = '⏳ ...';
+    
+    try {
+        const token = getToken();
+        const res = await fetch('/api/vouchers/validate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                code: code,
+                priceAgent: state.selectedProduct.priceAgent
+            })
+        });
+
+        const result = await res.json();
+        if (res.ok && result.success) {
+            state.appliedVoucherCode = result.code;
+            state.voucherDiscount = result.discount;
+
+            // Show discount row in checkout box
+            DOM.discountVal.textContent = `-${formatRupiah(result.discount)}`;
+            DOM.discountRow.style.display = 'flex';
+
+            // Show success message
+            DOM.voucherStatusMsg.style.display = 'block';
+            DOM.voucherStatusMsg.style.color = '#34d399'; // Success green
+            DOM.voucherStatusMsg.textContent = `Kupon ${result.code} berhasil diterapkan! Diskon ${formatRupiah(result.discount)}`;
+            
+            // Recalculate total bayar
+            updateCheckoutTotalDisplay();
+        } else {
+            // Failed
+            resetVoucherState();
+            DOM.voucherStatusMsg.style.display = 'block';
+            DOM.voucherStatusMsg.style.color = '#f87171'; // Error red
+            DOM.voucherStatusMsg.textContent = result.error || 'Voucher tidak dapat digunakan.';
+        }
+    } catch (err) {
+        console.error('Apply voucher error:', err);
+        alert('Gagal memvalidasi kupon.');
+        resetVoucherState();
+    } finally {
+        DOM.btnApplyVoucher.disabled = false;
+        DOM.btnApplyVoucher.textContent = 'Pakai';
+    }
+}
+
+function resetVoucherState() {
+    state.appliedVoucherCode = null;
+    state.voucherDiscount = 0;
+    if (DOM.voucherInput) DOM.voucherInput.value = '';
+    if (DOM.discountRow) DOM.discountRow.style.display = 'none';
+    if (DOM.discountVal) DOM.discountVal.textContent = '-Rp 0';
+    if (DOM.voucherStatusMsg) DOM.voucherStatusMsg.style.display = 'none';
+    if (DOM.voucherStatusMsg) DOM.voucherStatusMsg.textContent = '';
+    updateCheckoutTotalDisplay();
+}
+
+function updateCheckoutTotalDisplay() {
+    if (!state.selectedProduct) return;
+    
+    let total = state.selectedProduct.priceAgent - state.voucherDiscount;
+    if (total < 0) total = 0;
+
+    if (state.selectedPaymentMethod !== 'balance') {
+        total += 2000; // Flat Rp 2.000 fee for Midtrans sandbox gateway simulation
+    }
+    
+    DOM.checkoutTotal.textContent = formatRupiah(total);
 }
 
 // Check authorization on load

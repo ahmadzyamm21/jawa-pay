@@ -46,6 +46,15 @@ module.exports = (sequelize) => {
         sn: {
             type: DataTypes.STRING,
             allowNull: true
+        },
+        voucherCode: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        discountApplied: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            defaultValue: 0
         }
     }, {
         tableName: 'transactions',

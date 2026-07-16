@@ -41,6 +41,7 @@ db.Sequelize = Sequelize;
 // Import models
 db.User = require('./User')(sequelize);
 db.Transaction = require('./Transaction')(sequelize);
+db.Voucher = require('./Voucher')(sequelize);
 
 // Define associations
 db.User.hasMany(db.Transaction, { foreignKey: 'userId', as: 'transactions', onDelete: 'CASCADE' });

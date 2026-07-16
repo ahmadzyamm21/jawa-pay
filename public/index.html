@@ -465,13 +465,30 @@
 
                             <div class="checkout-divider"></div>
 
+                            <!-- Voucher Code Coupon Input -->
+                            <div class="voucher-input-box" style="margin-top: 12px; margin-bottom: 12px;">
+                                <label class="input-label" style="font-size: 11px; margin-bottom: 4px; display: block; text-align: left;">Kode Voucher / Promo</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="checkout-voucher-code" class="input-field" placeholder="Contoh: JAWAPAYNEW" style="text-transform: uppercase; font-size: 12px; padding: 8px 12px; height: 38px; border-radius: 8px; margin: 0;" autocomplete="off">
+                                    <button class="btn-topup" id="btn-apply-voucher" style="height: 38px; border-radius: 8px; font-size: 11px; font-weight: 700; padding: 0 16px; min-width: 80px; border: 1px solid var(--card-border); margin: 0; background: var(--primary-gradient);">Pakai</button>
+                                </div>
+                                <p id="voucher-status-msg" style="font-size: 11px; margin-top: 5px; display: none; text-align: left; font-weight: 500;"></p>
+                            </div>
+
+                            <div class="checkout-divider"></div>
+
                             <!-- Payment Methods Select -->
-                            <p class="input-label" style="margin-top: 10px; margin-bottom: 4px;">Metode Pembayaran</p>
+                            <p class="input-label" style="margin-top: 10px; margin-bottom: 4px; text-align: left;">Metode Pembayaran</p>
                             <div class="payment-methods" id="payment-methods-list">
                                 <!-- Rendered dynamically by JS -->
                             </div>
 
-                            <div class="checkout-row" style="margin-top: 10px;">
+                            <div class="checkout-row" id="checkout-discount-row" style="display: none; margin-top: 8px;">
+                                <span class="checkout-label text-success">Diskon Voucher</span>
+                                <span class="checkout-val text-success" id="checkout-discount-val">-Rp 0</span>
+                            </div>
+
+                            <div class="checkout-row" style="margin-top: 10px; border-top: 1px dashed var(--card-border); padding-top: 10px;">
                                 <span class="checkout-label" style="font-size: 16px; font-weight: 700; color: var(--text-primary);">Total Bayar</span>
                                 <span class="checkout-val checkout-total" id="checkout-total">Rp 0</span>
                             </div>

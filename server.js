@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 8000;
 
 // Import Sequelize database models
 const db = require('./models');
-const { User, Transaction, sequelize } = db;
+const { User, Transaction, Voucher, sequelize } = db;
 
 // Enable CORS and JSON parsing
 app.use(cors());
@@ -256,6 +256,44 @@ app.get('/api/config/payment', (req, res) => {
     });
 });
 
+// Validate Voucher Code (Protected)
+app.post('/api/vouchers/validate', authenticateToken, async (req, res) => {
+    const { code, priceAgent } = req.body;
+    if (!code) {
+        return res.status(400).json({ error: 'Kode voucher tidak boleh kosong.' });
+    }
+    try {
+        const voucher = await Voucher.findByPk(code.toUpperCase().trim());
+        if (!voucher) {
+            return res.status(404).json({ error: 'Kode voucher tidak valid.' });
+        }
+        if (!voucher.isActive) {
+            return res.status(400).json({ error: 'Voucher sudah tidak aktif.' });
+        }
+        if (voucher.usedCount >= voucher.maxUse) {
+            return res.status(400).json({ error: 'Kupon voucher telah habis digunakan.' });
+        }
+        
+        let discountApplied = voucher.discount;
+        if (voucher.type === 'percent') {
+            discountApplied = Math.round(parseInt(priceAgent) * (voucher.discount / 100));
+        }
+        
+        if (discountApplied > parseInt(priceAgent)) {
+            discountApplied = parseInt(priceAgent);
+        }
+
+        res.json({
+            success: true,
+            code: voucher.code,
+            discount: discountApplied
+        });
+    } catch (err) {
+        console.error('Validate voucher error:', err);
+        res.status(500).json({ error: 'Gagal memvalidasi voucher.' });
+    }
+});
+
 // Update flat markup (Protected)
 app.post('/api/auth/profile/update-markup', authenticateToken, async (req, res) => {
     const { markupFlat } = req.body;
@@ -334,7 +372,7 @@ app.post('/api/balance', authenticateToken, async (req, res) => {
 
 // Process Direct Agent Wallet Transaction (Protected with SQL Managed Transaction)
 app.post('/api/transaction', authenticateToken, async (req, res) => {
-    const { buyer_sku_code, customer_no, ref_id } = req.body;
+    const { buyer_sku_code, customer_no, ref_id, voucherCode } = req.body;
     const userId = req.user.id;
 
     if (!buyer_sku_code || !customer_no || !ref_id) {
@@ -350,7 +388,25 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
         const result = await sequelize.transaction(async (t) => {
             const user = await User.findByPk(userId, { transaction: t, lock: true });
             if (!user) throw new Error('USER_NOT_FOUND');
-            if (user.balance < productCost) throw new Error('INSUFFICIENT_BALANCE');
+
+            // Validate Voucher if supplied
+            let discountApplied = 0;
+            let appliedVoucher = null;
+            if (voucherCode) {
+                appliedVoucher = await Voucher.findByPk(voucherCode.toUpperCase().trim(), { transaction: t, lock: true });
+                if (appliedVoucher && appliedVoucher.isActive && appliedVoucher.usedCount < appliedVoucher.maxUse) {
+                    discountApplied = appliedVoucher.discount;
+                    if (appliedVoucher.type === 'percent') {
+                        discountApplied = Math.round(productCost * (appliedVoucher.discount / 100));
+                    }
+                    if (discountApplied > productCost) {
+                        discountApplied = productCost;
+                    }
+                }
+            }
+
+            const finalCost = productCost - discountApplied;
+            if (user.balance < finalCost) throw new Error('INSUFFICIENT_BALANCE');
 
             // API Purchase Simulation / Call
             let purchaseResult;
@@ -393,7 +449,7 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
             }
 
             // Deduct balance and save
-            user.balance -= productCost;
+            user.balance -= finalCost;
             await user.save({ transaction: t });
 
             const profit = (user.markupFlat !== null && user.markupFlat !== undefined) ? user.markupFlat : 1500;
@@ -406,12 +462,19 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
                 productName: productName,
                 target: customer_no,
                 priceAgent: productCost,
-                priceSell: productCost + profit,
+                priceSell: productCost + profit - discountApplied, // Adjusted by discount
                 profit: profit,
                 paymentMethod: 'Saldo Agen',
                 status: purchaseResult.status,
-                sn: purchaseResult.sn
+                sn: purchaseResult.sn,
+                voucherCode: appliedVoucher ? appliedVoucher.code : null,
+                discountApplied: discountApplied
             }, { transaction: t });
+
+            if (appliedVoucher) {
+                appliedVoucher.usedCount += 1;
+                await appliedVoucher.save({ transaction: t });
+            }
 
             return { user, newTrx };
         });
@@ -452,18 +515,39 @@ app.get('/api/payment-channels', async (req, res) => {
 
 // Request Midtrans Snap Transaction Token (Protected)
 app.post('/api/payment/request', authenticateToken, async (req, res) => {
-    const { amount, customer_phone, buyer_sku_code } = req.body;
+    const { amount, customer_phone, buyer_sku_code, voucherCode } = req.body;
     const userId = req.user.id;
 
     if (!amount || !customer_phone || !buyer_sku_code) {
         return res.status(400).json({ error: 'Parameter tidak lengkap.' });
     }
 
-    const merchantRef = 'INV-' + Date.now();
-    invoiceUserMap.set(merchantRef, userId);
+    // Validate Voucher if supplied
+    let discountApplied = 0;
+    let appliedVoucherCode = null;
+    if (voucherCode) {
+        try {
+            const voucher = await Voucher.findByPk(voucherCode.toUpperCase().trim());
+            if (voucher && voucher.isActive && voucher.usedCount < voucher.maxUse) {
+                discountApplied = voucher.discount;
+                if (voucher.type === 'percent') {
+                    discountApplied = Math.round(parseInt(amount) * (voucher.discount / 100));
+                }
+                if (discountApplied > parseInt(amount)) {
+                    discountApplied = parseInt(amount);
+                }
+                appliedVoucherCode = voucher.code;
+            }
+        } catch (err) {
+            console.error('Error validating voucher for Midtrans:', err);
+        }
+    }
 
-    // Total gross amount including flat Rp 2.000 fee
-    const totalAmount = parseInt(amount) + 2000;
+    const merchantRef = 'INV-' + Date.now();
+    invoiceUserMap.set(merchantRef, { userId, voucherCode: appliedVoucherCode, discountApplied });
+
+    // Total gross amount including flat Rp 2.000 fee and deducting discount
+    const totalAmount = Math.max(0, parseInt(amount) - discountApplied) + 2000;
 
     try {
         const parameter = {
@@ -521,12 +605,28 @@ app.post('/api/payment/callback', async (req, res) => {
     }
 
     if (isSuccess) {
-        const userId = invoiceUserMap.get(orderId);
-        if (!userId) return res.status(404).json({ success: false, message: 'Mapping user tidak ditemukan' });
+        const mapData = invoiceUserMap.get(orderId);
+        if (!mapData) return res.status(404).json({ success: false, message: 'Mapping user tidak ditemukan' });
+
+        const userId = typeof mapData === 'object' ? mapData.userId : mapData;
+        const voucherCode = typeof mapData === 'object' ? mapData.voucherCode : null;
+        const discountApplied = typeof mapData === 'object' ? mapData.discountApplied : 0;
 
         try {
             const user = await User.findByPk(userId);
             if (!user) throw new Error('User tidak ditemukan di DB');
+
+            if (voucherCode) {
+                try {
+                    const voucher = await Voucher.findByPk(voucherCode);
+                    if (voucher) {
+                        voucher.usedCount += 1;
+                        await voucher.save();
+                    }
+                } catch (vErr) {
+                    console.error('Error incrementing voucher count in callback:', vErr);
+                }
+            }
 
             // Find product and SKU details
             // Decode buyer_sku_code from item details or request mapping
@@ -544,10 +644,14 @@ app.post('/api/payment/callback', async (req, res) => {
 app.post('/api/payment/simulate-callback', async (req, res) => {
     const { merchant_ref, buyer_sku_code, customer_no } = req.body;
 
-    const userId = invoiceUserMap.get(merchant_ref);
-    if (!userId) {
+    const mapData = invoiceUserMap.get(merchant_ref);
+    if (!mapData) {
         return res.status(404).json({ error: 'User mapping untuk invoice ini tidak ditemukan.' });
     }
+
+    const userId = typeof mapData === 'object' ? mapData.userId : mapData;
+    const voucherCode = typeof mapData === 'object' ? mapData.voucherCode : null;
+    const discountApplied = typeof mapData === 'object' ? mapData.discountApplied : 0;
 
     console.log(`[Simulator Callback] Memproses sukses lokal untuk ${merchant_ref} (User: ${userId})`);
 
@@ -590,6 +694,19 @@ app.post('/api/payment/simulate-callback', async (req, res) => {
         const foundProd = findProductBySku(buyer_sku_code);
         const profit = (user.markupFlat !== null && user.markupFlat !== undefined) ? user.markupFlat : 1500;
 
+        // Increment voucher count if voucher applied
+        if (voucherCode) {
+            try {
+                const voucher = await Voucher.findByPk(voucherCode);
+                if (voucher) {
+                    voucher.usedCount += 1;
+                    await voucher.save();
+                }
+            } catch (vErr) {
+                console.error('Error incrementing voucher count in simulator callback:', vErr);
+            }
+        }
+
         // Insert to SQL DB
         await Transaction.create({
             id: purchaseResult.trx_id,
@@ -598,11 +715,13 @@ app.post('/api/payment/simulate-callback', async (req, res) => {
             productName: foundProd ? foundProd.name : buyer_sku_code,
             target: customer_no,
             priceAgent: foundProd ? foundProd.priceAgent : 10000,
-            priceSell: (foundProd ? foundProd.priceAgent : 10000) + profit,
+            priceSell: (foundProd ? foundProd.priceAgent : 10000) + profit - discountApplied, // Adjusted by discount
             profit: profit,
             paymentMethod: 'TRIPAY QRIS',
             status: purchaseResult.status,
-            sn: purchaseResult.sn
+            sn: purchaseResult.sn,
+            voucherCode: voucherCode,
+            discountApplied: discountApplied
         });
 
         res.json({
@@ -689,7 +808,7 @@ function parseDigiflazzProducts(raw) {
 }
 
 // Sync Database and Start Server
-db.sequelize.sync({ alter: true }).then(async () => {
+db.sequelize.sync({ alter: process.env.DB_DIALECT === 'postgres' }).then(async () => {
     console.log('[Sequelize] Database SQL Terhubung & Sinkron.');
     
     // Seed default demo user if DB is brand new
@@ -710,8 +829,18 @@ db.sequelize.sync({ alter: true }).then(async () => {
         if (ahmadUser && (ahmadUser.markupFlat === null || ahmadUser.markupFlat === undefined)) {
             ahmadUser.markupFlat = 1500;
             await ahmadUser.save();
-            console.log('[Sequelize Startup] Memperbaiki nilai markupFlat untuk user demo menjadi 1500.');
         }
+    }
+
+    // Seed default vouchers if empty
+    const voucherCount = await Voucher.count();
+    if (voucherCount === 0) {
+        await Voucher.bulkCreate([
+            { code: 'JAWAPAYNEW', discount: 1000, type: 'flat', isActive: true, maxUse: 100, usedCount: 0 },
+            { code: 'PLNHEMAT', discount: 1500, type: 'flat', isActive: true, maxUse: 50, usedCount: 0 },
+            { code: 'DISKON500', discount: 500, type: 'flat', isActive: true, maxUse: 200, usedCount: 0 }
+        ]);
+        console.log('[Sequelize Seed] Voucher bawaan JAWAPAYNEW, PLNHEMAT, DISKON500 sukses dibuat.');
     }
 
     const dbDialect = process.env.DB_DIALECT || 'sqlite';
