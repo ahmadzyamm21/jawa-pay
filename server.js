@@ -381,7 +381,7 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
             user.balance -= productCost;
             await user.save({ transaction: t });
 
-            const profit = user.markupFlat;
+            const profit = (user.markupFlat !== null && user.markupFlat !== undefined) ? user.markupFlat : 1500;
             
             // Create Transaction record in DB
             const newTrx = await Transaction.create({
@@ -562,7 +562,7 @@ app.post('/api/payment/simulate-callback', async (req, res) => {
         }
 
         const foundProd = findProductBySku(buyer_sku_code);
-        const profit = user.markupFlat;
+        const profit = (user.markupFlat !== null && user.markupFlat !== undefined) ? user.markupFlat : 1500;
 
         // Insert to SQL DB
         await Transaction.create({
@@ -674,17 +674,27 @@ db.sequelize.sync({ alter: true }).then(async () => {
             name: 'Ahmad Agent',
             username: 'ahmad',
             password: hashPassword('password123'),
-            balance: 750000
+            balance: 750000,
+            markupFlat: 1500
         });
         console.log('[Sequelize Seed] Akun demo bawaan "ahmad" ("password123") sukses dibuat.');
+    } else {
+        // Repair existing user if markupFlat is null
+        const ahmadUser = await User.findByPk('USR1001');
+        if (ahmadUser && (ahmadUser.markupFlat === null || ahmadUser.markupFlat === undefined)) {
+            ahmadUser.markupFlat = 1500;
+            await ahmadUser.save();
+            console.log('[Sequelize Startup] Memperbaiki nilai markupFlat untuk user demo menjadi 1500.');
+        }
     }
 
+    const dbDialect = process.env.DB_DIALECT || 'sqlite';
     app.listen(PORT, () => {
         console.log(`====================================================`);
         console.log(`🚀 Jawa Pay Backend running on: http://localhost:${PORT}`);
         console.log(`📂 Menyajikan berkas frontend dari folder /public`);
         console.log(`🔑 Kredensial Digiflazz: ${isDigiflazzMock() ? 'Sandbox' : 'Live'}`);
-        console.log(`🔒 Autentikasi JWT: AKTIF (Database SQL SQLite)`);
+        console.log(`🔒 Autentikasi JWT: AKTIF (Database SQL ${dbDialect === 'sqlite' ? 'SQLite' : 'PostgreSQL'})`);
         console.log(`====================================================`);
     });
 }).catch(err => {

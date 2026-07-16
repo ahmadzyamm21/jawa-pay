@@ -281,6 +281,13 @@ function logout() {
 
 // ---------------- CORE UTILITIES & API SYNC ----------------
 
+function getMarkupFlat() {
+    if (!state.user || state.user.markupFlat === null || state.user.markupFlat === undefined) {
+        return 1500;
+    }
+    return state.user.markupFlat;
+}
+
 async function fetchBalance() {
     const token = getToken();
     if (!token) return;
@@ -421,7 +428,7 @@ function renderProducts() {
                 </div>
                 <div>
                     <div style="font-size: 9px; color: var(--text-secondary); text-align: right;">HARGA JUAL</div>
-                    <div class="price-sell">${formatRupiah(prod.priceAgent + (state.user ? state.user.markupFlat : 1500))}</div>
+                    <div class="price-sell">${formatRupiah(prod.priceAgent + getMarkupFlat())}</div>
                 </div>
             </div>
         `;
@@ -443,7 +450,7 @@ function selectProduct(product) {
     DOM.checkoutCardTarget.textContent = state.targetNumber || '-';
     DOM.checkoutPriceAgent.textContent = formatRupiah(product.priceAgent);
     
-    const markup = state.user ? state.user.markupFlat : 1500;
+    const markup = getMarkupFlat();
     const calculatedSell = product.priceAgent + markup;
     DOM.checkoutPriceSell.textContent = formatRupiah(calculatedSell);
     DOM.checkoutProfit.textContent = formatRupiah(markup);
@@ -611,7 +618,7 @@ function setupListeners() {
     if (DOM.btnSettings) {
         DOM.btnSettings.addEventListener('click', () => {
             if (state.user) {
-                DOM.settingsMarkupInput.value = state.user.markupFlat;
+                DOM.settingsMarkupInput.value = getMarkupFlat();
                 
                 // Show current settings in modal UI
                 const currentTheme = localStorage.getItem('jawapay_theme') || 'dark';
@@ -813,7 +820,7 @@ async function executeDirectTransaction() {
 // 2. Request Midtrans Payment Invoice (Protected API call)
 async function executeMidtransPaymentRequest() {
     const token = getToken();
-    const markup = state.user ? state.user.markupFlat : 1500;
+    const markup = getMarkupFlat();
     const calculatedSell = state.selectedProduct.priceAgent + markup;
     
     // Total gross amount including dynamic Flat Rp 2.000 fee
