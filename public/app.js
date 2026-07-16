@@ -490,6 +490,46 @@ function setupListeners() {
     DOM.btnRegisterSubmit.addEventListener('click', handleRegister);
     DOM.btnLogout.addEventListener('click', logout);
 
+    // Terms & Privacy modals
+    const linkTerms = document.getElementById('link-terms');
+    const linkPrivacy = document.getElementById('link-privacy');
+    const termsModal = document.getElementById('terms-modal');
+    const privacyModal = document.getElementById('privacy-modal');
+    const btnCloseTerms = document.getElementById('btn-close-terms');
+    const btnClosePrivacy = document.getElementById('btn-close-privacy');
+
+    if (linkTerms) {
+        linkTerms.addEventListener('click', (e) => {
+            e.preventDefault();
+            termsModal.classList.add('show');
+        });
+    }
+    if (linkPrivacy) {
+        linkPrivacy.addEventListener('click', (e) => {
+            e.preventDefault();
+            privacyModal.classList.add('show');
+        });
+    }
+    if (btnCloseTerms) {
+        btnCloseTerms.addEventListener('click', () => {
+            termsModal.classList.remove('show');
+        });
+    }
+    if (btnClosePrivacy) {
+        btnClosePrivacy.addEventListener('click', () => {
+            privacyModal.classList.remove('show');
+        });
+    }
+    [termsModal, privacyModal].forEach(modal => {
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                }
+            });
+        }
+    });
+
     // Categories tab click
     DOM.tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -735,6 +775,10 @@ function closeAllModals() {
     DOM.qrisModal.classList.remove('show');
     DOM.receiptModal.classList.remove('show');
     if (DOM.settingsModal) DOM.settingsModal.classList.remove('show');
+    const termsM = document.getElementById('terms-modal');
+    const privacyM = document.getElementById('privacy-modal');
+    if (termsM) termsM.classList.remove('show');
+    if (privacyM) privacyM.classList.remove('show');
     clearInterval(qrisTimerInterval);
 }
 

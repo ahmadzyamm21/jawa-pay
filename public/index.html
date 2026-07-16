@@ -66,6 +66,22 @@
                     Sudah punya akun? <a href="#" id="link-to-login" style="color: var(--primary); font-weight: 600; text-decoration: none;">Masuk di sini</a>
                 </p>
             </div>
+            
+            <!-- Midtrans KYC & Info Compliance Section -->
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.6;">
+                <p style="font-weight: 600; color: var(--text-main); margin-bottom: 6px;">📢 Akun Uji Coba (Reviewer Midtrans):</p>
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 8px 12px; border-radius: 10px; display: inline-block; font-family: monospace; border: 1px dashed rgba(255, 255, 255, 0.12); margin-bottom: 12px;">
+                    Username: <span style="color: var(--primary); font-weight: bold;">ahmad</span> | Password: <span style="color: var(--primary); font-weight: bold;">password123</span>
+                </div>
+                <p style="margin-bottom: 8px;">Jawa Pay adalah platform keagenan digital untuk pengisian pulsa, paket data, dan token PLN prabayar resmi.</p>
+                <div style="display: flex; justify-content: center; gap: 12px; margin-top: 12px;">
+                    <a href="#" id="link-terms" style="color: var(--primary); text-decoration: none; font-weight: 500;">Syarat & Ketentuan</a>
+                    <span>•</span>
+                    <a href="#" id="link-privacy" style="color: var(--primary); text-decoration: none; font-weight: 500;">Kebijakan Privasi</a>
+                    <span>•</span>
+                    <a href="mailto:ahmadzyamm21@gmail.com" style="color: var(--primary); text-decoration: none; font-weight: 500;">Hubungi Kami</a>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -547,6 +563,40 @@
                     <i data-lucide="save" style="width: 18px; height: 18px;"></i>
                     Simpan Setelan
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: Syarat & Ketentuan -->
+    <div class="modal-overlay" id="terms-modal">
+        <div class="modal-container" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <button class="modal-close" id="btn-close-terms"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
+            <h3 class="modal-title" style="margin-bottom: 16px;">Syarat & Ketentuan Jawa Pay</h3>
+            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; text-align: justify;">
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">1. Pendahuluan</p>
+                <p style="margin-bottom: 12px;">Selamat datang di Jawa Pay. Dengan menggunakan situs dan layanan kami, Anda menyetujui ketentuan penggunaan ini secara penuh. Jika Anda keberatan dengan ketentuan di halaman ini, harap tidak menggunakan platform kami.</p>
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">2. Layanan Kami</p>
+                <p style="margin-bottom: 12px;">Jawa Pay menyediakan platform keagenan digital untuk pengisian pulsa, paket data internet, token listrik PLN, dan produk digital prabayar lainnya. Kami berhak mengubah harga produk sewaktu-waktu sesuai dengan penyesuaian pasar atau server mitra.</p>
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">3. Akun dan Keamanan</p>
+                <p style="margin-bottom: 12px;">Anda bertanggung jawab penuh untuk menjaga kerahasiaan kata sandi akun Jawa Pay Anda. Segala penyalahgunaan akun atau transaksi yang diakibatkan kelalaian pengguna adalah tanggung jawab pribadi masing-masing.</p>
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">4. Transaksi dan Pembayaran</p>
+                <p style="margin-bottom: 12px;">Pembayaran top-up saldo agen dilakukan menggunakan QRIS atau transfer bank resmi melalui sistem payment gateway terintegrasi. Semua transaksi yang sudah sukses diproses tidak dapat dibatalkan atau direfund, kecuali terbukti ada kesalahan sistem.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 6: Kebijakan Privasi -->
+    <div class="modal-overlay" id="privacy-modal">
+        <div class="modal-container" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <button class="modal-close" id="btn-close-privacy"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
+            <h3 class="modal-title" style="margin-bottom: 16px;">Kebijakan Privasi Jawa Pay</h3>
+            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; text-align: justify;">
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">1. Perlindungan Data</p>
+                <p style="margin-bottom: 12px;">Kami berkomitmen menjaga kerahasiaan data pribadi pengguna, termasuk nama, nomor telepon, username, serta data transaksi. Kami tidak akan menjual atau membagikan data Anda kepada pihak ketiga mana pun tanpa persetujuan Anda.</p>
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">2. Penggunaan Data</p>
+                <p style="margin-bottom: 12px;">Data Anda kami gunakan untuk keperluan autentikasi akun, memproses transaksi digital, mempermudah pelacakan pembayaran Midtrans, serta mendukung penyelesaian kendala teknis.</p>
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">3. Keamanan</p>
+                <p style="margin-bottom: 12px;">Kami menerapkan pengamanan berstandar industri dengan teknologi hashing password satu arah untuk melindungi data autentikasi Anda dari akses yang tidak sah.</p>
             </div>
         </div>
     </div>
