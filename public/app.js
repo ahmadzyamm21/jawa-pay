@@ -50,6 +50,7 @@ function detectOperator(number) {
 const DOM = {
     // Auth elements
     authContainer: document.getElementById('auth-container'),
+    landingContainer: document.getElementById('landing-container'),
     mainAppContainer: document.getElementById('main-app-container'),
     loginFormBox: document.getElementById('login-form-box'),
     registerFormBox: document.getElementById('register-form-box'),
@@ -155,6 +156,7 @@ async function checkAuth() {
                 
                 // Show dashboard
                 DOM.authContainer.style.display = 'none';
+                DOM.landingContainer.style.display = 'none';
                 DOM.mainAppContainer.style.display = 'block';
                 
                 // Render details
@@ -175,9 +177,11 @@ async function checkAuth() {
             logout();
         }
     } else {
-        // Show login page
-        DOM.authContainer.style.display = 'block';
+        // Show landing page
+        DOM.authContainer.style.display = 'none';
         DOM.mainAppContainer.style.display = 'none';
+        DOM.landingContainer.style.display = 'block';
+        fetchLandingPrices();
     }
     if (window.lucide) window.lucide.createIcons();
 }
@@ -274,8 +278,10 @@ function logout() {
     state.user = null;
     state.balance = 0;
     state.transactions = [];
-    DOM.authContainer.style.display = 'block';
+    DOM.authContainer.style.display = 'none';
     DOM.mainAppContainer.style.display = 'none';
+    DOM.landingContainer.style.display = 'block';
+    fetchLandingPrices();
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -720,6 +726,49 @@ function setupListeners() {
         DOM.receiptWidthSelect.addEventListener('change', (e) => {
             const val = e.target.value;
             DOM.receiptPaper.className = `receipt-paper width-${val}`;
+        });
+    }
+
+    // Landing page action handlers
+    const btnGoToLogin = document.getElementById('btn-go-to-login');
+    const btnHeroRegister = document.getElementById('btn-hero-register');
+    const btnBottomRegister = document.getElementById('btn-bottom-register');
+    const linkTermsLand = document.getElementById('link-terms-land');
+    const linkPrivacyLand = document.getElementById('link-privacy-land');
+
+    if (btnGoToLogin) {
+        btnGoToLogin.addEventListener('click', () => {
+            DOM.landingContainer.style.display = 'none';
+            DOM.authContainer.style.display = 'block';
+            DOM.loginFormBox.style.display = 'block';
+            DOM.registerFormBox.style.display = 'none';
+        });
+    }
+
+    [btnHeroRegister, btnBottomRegister].forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', () => {
+                DOM.landingContainer.style.display = 'none';
+                DOM.authContainer.style.display = 'block';
+                DOM.loginFormBox.style.display = 'none';
+                DOM.registerFormBox.style.display = 'block';
+            });
+        }
+    });
+
+    if (linkTermsLand) {
+        linkTermsLand.addEventListener('click', (e) => {
+            e.preventDefault();
+            const termsM = document.getElementById('terms-modal');
+            if (termsM) termsM.classList.add('show');
+        });
+    }
+
+    if (linkPrivacyLand) {
+        linkPrivacyLand.addEventListener('click', (e) => {
+            e.preventDefault();
+            const privacyM = document.getElementById('privacy-modal');
+            if (privacyM) privacyM.classList.add('show');
         });
     }
 }
@@ -1374,6 +1423,108 @@ async function loadMidtransScript() {
     } catch (err) {
         console.error('Failed to load Midtrans script:', err);
     }
+}
+
+// ---------------- LANDING PAGE PRICING LOADER ----------------
+
+let landingProducts = null;
+let currentLandingCategory = 'pulsa';
+let currentLandingOperator = null;
+
+async function fetchLandingPrices() {
+    try {
+        const res = await fetch('/api/products');
+        if (res.ok) {
+            landingProducts = await res.json();
+            renderLandingCategoryTabs();
+            renderLandingPrices();
+        } else {
+            console.error('Gagal mengambil harga produk untuk landing page.');
+        }
+    } catch (err) {
+        console.error('Koneksi katalog landing page gagal:', err);
+    }
+}
+
+function renderLandingCategoryTabs() {
+    // Add event listeners to category tabs
+    document.querySelectorAll('#landing-tabs button').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('#landing-tabs button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentLandingCategory = btn.getAttribute('data-landcat');
+            currentLandingOperator = null; // Reset operator choice
+            renderLandingPrices();
+        };
+    });
+}
+
+function renderLandingPrices() {
+    const operatorContainer = document.getElementById('landing-operators');
+    const rowsContainer = document.getElementById('landing-price-rows');
+    if (!rowsContainer || !landingProducts) return;
+    
+    // Get products for the selected category
+    const categoryData = landingProducts[currentLandingCategory];
+    if (!categoryData) {
+        rowsContainer.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-secondary);">Produk tidak tersedia</td></tr>';
+        operatorContainer.innerHTML = '';
+        return;
+    }
+    
+    // For categories that have brands/operators
+    let operators = [];
+    let productsToRender = [];
+    
+    if (currentLandingCategory === 'pln') {
+        operatorContainer.innerHTML = ''; // PLN doesn't need operator dots
+        productsToRender = categoryData.global || [];
+    } else {
+        operators = Object.keys(categoryData);
+        
+        // Render operator dots/pills selector
+        operatorContainer.innerHTML = '';
+        if (operators.length > 0) {
+            if (!currentLandingOperator || !operators.includes(currentLandingOperator)) {
+                currentLandingOperator = operators[0];
+            }
+            
+            operators.forEach(op => {
+                const btn = document.createElement('button');
+                btn.className = `operator-pill-btn ${op === currentLandingOperator ? 'active' : ''}`;
+                btn.textContent = op.toUpperCase();
+                btn.onclick = () => {
+                    currentLandingOperator = op;
+                    renderLandingPrices();
+                };
+                operatorContainer.appendChild(btn);
+            });
+            
+            productsToRender = categoryData[currentLandingOperator] || [];
+        }
+    }
+    
+    // Render rows
+    rowsContainer.innerHTML = '';
+    if (productsToRender.length === 0) {
+        rowsContainer.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-secondary);">Tidak ada produk aktif</td></tr>';
+        return;
+    }
+    
+    productsToRender.forEach(prod => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--card-border)';
+        
+        tr.innerHTML = `
+            <td style="padding: 14px 12px; font-weight: 600; color: var(--text-primary); text-align: left;">${prod.name}</td>
+            <td style="padding: 14px 12px; font-family: monospace; color: var(--text-muted); text-align: left;">${prod.sku}</td>
+            <td style="padding: 14px 12px; font-weight: 700; color: var(--primary); text-align: left;">${formatRupiah(prod.priceAgent)}</td>
+            <td style="padding: 14px 12px; text-align: right;">
+                <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;">AKTIF</span>
+            </td>
+        `;
+        rowsContainer.appendChild(tr);
+    });
 }
 
 // Check authorization on load

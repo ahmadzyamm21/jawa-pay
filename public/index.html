@@ -13,8 +13,241 @@
 </head>
 <body>
 
+    <!-- Landing / Promotional Section -->
+    <div id="landing-container">
+        <!-- Landing Header -->
+        <header class="app-container" style="border-bottom: 1px solid var(--card-border); margin-bottom: 0; padding: 20px 16px;">
+            <div class="brand">
+                <div class="brand-icon">J</div>
+                <div>
+                    <h1 class="brand-name">Jawa Pay</h1>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-top: -4px;">Keagenan Pulsa & Tagihan Premium</p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <nav class="desktop-nav" style="display: flex; gap: 24px; font-size: 14px; font-weight: 500;">
+                    <a href="#features" style="color: var(--text-secondary); text-decoration: none; transition: var(--transition-smooth);">Fitur</a>
+                    <a href="#prices" style="color: var(--text-secondary); text-decoration: none; transition: var(--transition-smooth);">Daftar Harga</a>
+                    <a href="#how-it-works" style="color: var(--text-secondary); text-decoration: none; transition: var(--transition-smooth);">Cara Mulai</a>
+                </nav>
+                <button class="btn-topup" id="btn-go-to-login" style="padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; background: var(--primary-gradient); border: none; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
+                    <i data-lucide="log-in" style="width: 15px; height: 15px; margin-right: 6px;"></i> Masuk Agen
+                </button>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="landing-hero app-container" style="padding: 60px 16px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; align-items: center;">
+            <div>
+                <span style="background: rgba(99, 102, 241, 0.15); color: #c084fc; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">⚡ Bisnis Pulsa Tanpa Batas</span>
+                <h2 style="font-size: 42px; font-weight: 800; line-height: 1.2; margin-top: 16px; letter-spacing: -1px;">
+                    Mulai Bisnis Agen Pulsa & PPOB Terpercaya Bersama <span style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Jawa Pay</span>
+                </h2>
+                <p style="color: var(--text-secondary); margin-top: 16px; font-size: 15px; line-height: 1.6;">
+                    Nikmati harga dasar produk termurah langsung dari server distributor, transaksi instan 24 jam nonstop, dan pembayaran otomatis QRIS yang langsung masuk saldo agen secara instan!
+                </p>
+                <div style="display: flex; gap: 16px; margin-top: 32px; flex-wrap: wrap;">
+                    <button class="btn-action" id="btn-hero-register" style="max-width: 220px; height: 48px; border-radius: 12px; background: var(--primary-gradient); box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);">
+                        <i data-lucide="user-plus" style="width: 18px; height: 18px;"></i> Daftar Jadi Agen
+                    </button>
+                    <a href="#prices" class="tab-btn" style="text-decoration: none; display: flex; align-items: center; justify-content: center; padding: 0 24px; border-radius: 12px; border: 1px solid var(--card-border); color: var(--text-primary); font-size: 13px; font-weight: 600; background: rgba(255, 255, 255, 0.03); transition: var(--transition-smooth);">
+                        <i data-lucide="tag" style="width: 16px; height: 16px; margin-right: 8px;"></i> Lihat Harga Live
+                    </a>
+                </div>
+            </div>
+            <div style="position: relative; display: flex; justify-content: center;">
+                <div style="position: absolute; width: 300px; height: 300px; background: radial-gradient(circle, rgba(99, 102, 241, 0.25) 0%, transparent 70%); top: -50px; z-index: 1;"></div>
+                <img src="jawapay_hero.png" alt="Jawa Pay Mockup" style="width: 100%; max-width: 440px; border-radius: 24px; border: 1px solid var(--card-border); box-shadow: 0 20px 40px rgba(0,0,0,0.5); z-index: 2; transform: perspective(800px) rotateY(-10deg) rotateX(5deg);">
+            </div>
+        </section>
+
+        <!-- Features Grid -->
+        <section id="features" class="app-container" style="padding: 40px 16px;">
+            <div style="text-align: center; margin-bottom: 40px;">
+                <span style="color: var(--primary); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Keunggulan Layanan</span>
+                <h3 style="font-size: 28px; font-weight: 800; margin-top: 8px; letter-spacing: -0.5px;">Kenapa Memilih Jawa Pay?</h3>
+            </div>
+            <div class="landing-features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div class="glass-card" style="padding: 24px; border-radius: 20px; transition: var(--transition-smooth);">
+                    <div style="width: 48px; height: 48px; background: rgba(99, 102, 241, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--primary); margin-bottom: 20px;">
+                        <i data-lucide="zap" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 10px;">Transaksi Instan 24/7</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">Proses pengisian pulsa dan data super kilat dalam hitungan detik secara otomatis langsung dari server pusat.</p>
+                </div>
+                <div class="glass-card" style="padding: 24px; border-radius: 20px; transition: var(--transition-smooth);">
+                    <div style="width: 48px; height: 48px; background: rgba(6, 182, 212, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #06b6d4; margin-bottom: 20px;">
+                        <i data-lucide="qr-code" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 10px;">Metode Pembayaran Instan</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">Top-up saldo otomatis menggunakan QRIS Snap (GoPay, OVO, Dana, LinkAja) & Transfer Virtual Account.</p>
+                </div>
+                <div class="glass-card" style="padding: 24px; border-radius: 20px; transition: var(--transition-smooth);">
+                    <div style="width: 48px; height: 48px; background: rgba(16, 185, 129, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #10b981; margin-bottom: 20px;">
+                        <i data-lucide="trending-up" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 10px;">Harga Distributor Terbaik</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">Mendapatkan harga modal tangan pertama termurah sehingga Anda bisa meraup keuntungan penjualan maksimal.</p>
+                </div>
+                <div class="glass-card" style="padding: 24px; border-radius: 20px; transition: var(--transition-smooth);">
+                    <div style="width: 48px; height: 48px; background: rgba(245, 158, 11, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #f59e0b; margin-bottom: 20px;">
+                        <i data-lucide="printer" style="width: 24px; height: 24px;"></i>
+                    </div>
+                    <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 10px;">Cetak Struk Thermal</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">Dilengkapi modul cetak struk penjualan profesional dengan penyesuaian nama toko & ukuran printer thermal (58mm/80mm).</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Live Prices Section -->
+        <section id="prices" class="app-container" style="padding: 40px 16px;">
+            <div style="text-align: center; margin-bottom: 32px;">
+                <span style="color: var(--primary); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Katalog Produk</span>
+                <h3 style="font-size: 28px; font-weight: 800; margin-top: 8px; letter-spacing: -0.5px;">Daftar Harga Live Agen</h3>
+            </div>
+            
+            <div class="glass-card" style="padding: 28px; border-radius: 24px;">
+                <!-- Category Tab Selector -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;" id="landing-tabs">
+                    <button class="tab-btn active" data-landcat="pulsa" style="padding: 10px 18px; border-radius: 10px;">⚡ Pulsa Seluler</button>
+                    <button class="tab-btn" data-landcat="data" style="padding: 10px 18px; border-radius: 10px;">📱 Paket Data</button>
+                    <button class="tab-btn" data-landcat="pln" style="padding: 10px 18px; border-radius: 10px;">🔌 Token PLN</button>
+                </div>
+                
+                <!-- Operator Selector -->
+                <div style="display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center;" id="landing-operators">
+                    <!-- Dynamic Operator Dots will be rendered here -->
+                </div>
+
+                <!-- Price List Table -->
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--card-border); color: var(--text-secondary); font-weight: 600;">
+                                <th style="padding: 12px;">Produk</th>
+                                <th style="padding: 12px;">SKU</th>
+                                <th style="padding: 12px;">Harga Agen</th>
+                                <th style="padding: 12px; text-align: right;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="landing-price-rows">
+                            <!-- Dynamic price list rows will be loaded here -->
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 24px; color: var(--text-secondary);">
+                                    <div class="loader-spinner" style="margin: 0 auto 10px;"></div> Loading katalog harga...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- How it works -->
+        <section id="how-it-works" class="app-container" style="padding: 40px 16px; text-align: center;">
+            <div style="margin-bottom: 40px;">
+                <span style="color: var(--primary); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Panduan Keagenan</span>
+                <h3 style="font-size: 28px; font-weight: 800; margin-top: 8px; letter-spacing: -0.5px;">3 Langkah Mudah Memulai</h3>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 30px; margin-top: 20px;">
+                <div style="position: relative;">
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: white; margin: 0 auto 20px; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);">1</div>
+                    <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Daftar Akun Gratis</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 250px; margin: 0 auto;">Buka menu daftar, isikan nama lengkap dan password pilihan Anda secara gratis.</p>
+                </div>
+                <div>
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--secondary-gradient); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: white; margin: 0 auto 20px; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);">2</div>
+                    <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Isi Saldo Agen</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 250px; margin: 0 auto;">Top-up saldo instan menggunakan QRIS otomatis. Saldo bertambah instan.</p>
+                </div>
+                <div>
+                    <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--success-gradient); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; color: white; margin: 0 auto 20px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">3</div>
+                    <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Mulai Jualan</h4>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; max-width: 250px; margin: 0 auto;">Ketik nomor pembeli, pilih produk, dan dapatkan keuntungan flat langsung.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Testimonials -->
+        <section class="app-container" style="padding: 40px 16px;">
+            <div style="text-align: center; margin-bottom: 40px;">
+                <span style="color: var(--primary); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Kisah Sukses</span>
+                <h3 style="font-size: 28px; font-weight: 800; margin-top: 8px; letter-spacing: -0.5px;">Telah Dipercaya Ratusan Agen</h3>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                <div class="glass-card" style="padding: 24px; border-radius: 20px;">
+                    <div style="display: flex; gap: 4px; color: #f59e0b; margin-bottom: 12px;">
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                    </div>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; font-style: italic; margin-bottom: 20px;">
+                        "Sebelumnya pakai aplikasi lain sering pending. Sejak pakai Jawa Pay transaksi lancar, pulsa masuk kurang dari 5 detik!"
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 38px; height: 38px; border-radius: 50%; background: #c084fc; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">B</div>
+                        <div>
+                            <h5 style="font-size: 13px; font-weight: 700;">Budi Setiawan</h5>
+                            <p style="font-size: 11px; color: var(--text-muted);">Agen Konter - Solo</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card" style="padding: 24px; border-radius: 20px;">
+                    <div style="display: flex; gap: 4px; color: #f59e0b; margin-bottom: 12px;">
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                        <i data-lucide="star" style="width: 14px; height: 14px; fill: currentColor;"></i>
+                    </div>
+                    <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; font-style: italic; margin-bottom: 20px;">
+                        "Bisa atur keuntungan flat sendiri itu fitur terbaik. Cetak struknya juga rapi banget untuk langganan token PLN konter saya."
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 38px; height: 38px; border-radius: 50%; background: #60a5fa; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">S</div>
+                        <div>
+                            <h5 style="font-size: 13px; font-weight: 700;">Siti Rahma</h5>
+                            <p style="font-size: 11px; color: var(--text-muted);">Kios Sembako - Yogyakarta</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Callout Banner -->
+        <section class="app-container" style="padding: 40px 16px;">
+            <div class="glass-card" style="padding: 48px 32px; border-radius: 28px; text-align: center; background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.2) 0%, rgba(22, 19, 49, 0.6) 100%);">
+                <h3 style="font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">Siap Mengembangkan Usaha Anda?</h3>
+                <p style="color: var(--text-secondary); font-size: 15px; margin-top: 12px; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6;">
+                    Gabung bersama ratusan agen Jawa Pay sekarang juga secara gratis dan raih keuntungan tanpa batas.
+                </p>
+                <button class="btn-action" id="btn-bottom-register" style="max-width: 220px; height: 48px; border-radius: 12px; margin: 32px auto 0; background: var(--primary-gradient); box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);">
+                    <i data-lucide="user-plus" style="width: 18px; height: 18px;"></i> Daftar Sekarang
+                </button>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="app-container" style="padding: 40px 16px 20px; border-top: 1px solid var(--card-border); font-size: 13px; color: var(--text-secondary); text-align: center;">
+            <p style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Jawa Pay - Platform Distributor Pulsa & Tagihan PPOB</p>
+            <p style="margin-bottom: 20px; line-height: 1.6; max-width: 600px; margin-left: auto; margin-right: auto;">
+                Jawa Pay menyediakan layanan agen pulsa elektrik termurah dan terlengkap di Indonesia dengan sistem otomatisasi pembayaran payment gateway Midtrans & interkoneksi Digiflazz.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+                <a href="#" id="link-terms-land" style="color: var(--primary); text-decoration: none; font-weight: 600;">Syarat & Ketentuan</a>
+                <span>•</span>
+                <a href="#" id="link-privacy-land" style="color: var(--primary); text-decoration: none; font-weight: 600;">Kebijakan Privasi</a>
+                <span>•</span>
+                <a href="mailto:ahmadzyamm21@gmail.com" style="color: var(--primary); text-decoration: none; font-weight: 600;">Hubungi Kami (Bantuan)</a>
+            </div>
+            <p style="font-size: 11px; color: var(--text-muted);">&copy; 2026 Jawa Pay. Hak Cipta Dilindungi Undang-Undang.</p>
+        </footer>
+    </div>
+
     <!-- Auth Section (Login/Register Card) -->
-    <div class="app-container" id="auth-container">
+    <div class="app-container" id="auth-container" style="display: none;">
         <div class="glass-card" style="max-width: 420px; margin: 80px auto; padding: 32px; border-radius: 28px;">
             <div style="text-align: center; margin-bottom: 28px;">
                 <div class="brand-icon" style="margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; float: none;">J</div>

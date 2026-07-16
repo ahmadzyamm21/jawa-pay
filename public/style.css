@@ -1005,3 +1005,75 @@ body, header, aside, main, .card, .input-field, .btn-action, .topup-choice-btn, 
     border-color: var(--text-primary) !important;
     box-shadow: 0 0 10px var(--primary);
 }
+
+/* ================= LANDING PAGE CUSTOM STYLES ================= */
+
+#landing-container {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.desktop-nav a:hover {
+    color: var(--primary) !important;
+    text-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+}
+
+.landing-features-grid .glass-card:hover {
+    transform: translateY(-8px);
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 10px 25px rgba(99, 102, 241, 0.1);
+}
+
+#landing-tabs .tab-btn {
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+#landing-tabs .tab-btn.active {
+    background: var(--primary-gradient);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+/* Operator Pill Dot Buttons for landing page */
+.operator-pill-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.operator-pill-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 0 10px var(--primary);
+}
+
+/* Hero Section Responsiveness */
+@media (max-width: 900px) {
+    .landing-hero {
+        grid-template-columns: 1fr !important;
+        text-align: center;
+        gap: 30px !important;
+        padding: 40px 16px !important;
+    }
+    .landing-hero img {
+        transform: none !important;
+        max-width: 320px !important;
+    }
+    .desktop-nav {
+        display: none !important; /* Hide navigation links on small screens */
+    }
+    .brand-name {
+        font-size: 20px !important;
+    }
+}
