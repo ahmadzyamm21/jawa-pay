@@ -504,6 +504,67 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
 });
 
 
+// ---------------- DIGIFLAZZ WEBHOOK CALLBACK ----------------
+
+app.post('/api/digiflazz/callback', async (req, res) => {
+    try {
+        const payload = req.body;
+        console.log('[Digiflazz Webhook Received]:', JSON.stringify(payload));
+
+        let data = payload;
+        if (payload.post) {
+            try {
+                data = JSON.parse(payload.post);
+            } catch (e) {
+                data = payload;
+            }
+        }
+
+        const { trx_id, ref_id, status, sn } = data;
+
+        if (!trx_id) {
+            return res.status(400).json({ error: 'Missing trx_id' });
+        }
+
+        // Handle database updates
+        await sequelize.transaction(async (t) => {
+            const trx = await Transaction.findByPk(trx_id, { transaction: t, lock: true });
+            if (!trx) {
+                console.warn(`[Digiflazz Webhook] Transaction with ID ${trx_id} not found in database.`);
+                return;
+            }
+
+            const oldStatus = trx.status;
+            const newStatus = status === 'Success' || status === 'Sukses' ? 'Sukses' : (status === 'Failed' || status === 'Gagal' ? 'Gagal' : oldStatus);
+
+            if (oldStatus !== newStatus) {
+                trx.status = newStatus;
+                if (sn) trx.sn = sn;
+                await trx.save({ transaction: t });
+
+                console.log(`[Digiflazz Webhook] Transaction ${trx_id} status updated from ${oldStatus} to ${newStatus}.`);
+
+                // If status changed to Gagal, refund user's balance
+                if (newStatus === 'Gagal' && trx.paymentMethod === 'Saldo Agen') {
+                    const user = await User.findByPk(trx.userId, { transaction: t, lock: true });
+                    if (user) {
+                        const refundAmount = trx.priceAgent - trx.discountApplied; // The actual cost deducted
+                        user.balance += refundAmount;
+                        await user.save({ transaction: t });
+                        console.log(`[Digiflazz Webhook] Refunded Rp ${refundAmount} to user ${user.id} due to failed transaction.`);
+                    }
+                }
+            }
+        });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[Digiflazz Webhook Error]:', err);
+        res.status(500).json({ error: 'Webhook processing error' });
+    }
+});
+
+
 // ---------------- TRIPAY ENDPOINTS ----------------
 
 // Get Payment Channels (Deprecated - Midtrans uses unified Snap popup, return dummy)
