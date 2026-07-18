@@ -1447,6 +1447,14 @@ async function loadMidtransScript() {
         const res = await fetch('/api/config/payment');
         const config = await res.json();
         
+        // Sembunyikan info akun uji coba secara otomatis di mode produksi
+        if (config.isProduction) {
+            const credentialsBox = document.getElementById('reviewer-credentials-box');
+            if (credentialsBox) {
+                credentialsBox.style.display = 'none';
+            }
+        }
+
         const script = document.createElement('script');
         script.type = 'text/javascript';
         script.src = config.isProduction 
