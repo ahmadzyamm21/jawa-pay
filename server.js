@@ -134,6 +134,61 @@ function hashPassword(password) {
     return crypto.createHash('sha256').update(password).digest('hex');
 }
 
+// Nodemailer setup for email verification dispatch
+const nodemailer = require('nodemailer');
+async function sendVerificationEmail(email, name, token) {
+    const verifyLink = `${process.env.APP_URL || 'https://jawa-pay.onrender.com'}/api/auth/verify?token=${token}`;
+    console.log(`[Email Verification] Link generated for ${email}: ${verifyLink}`);
+
+    // Skip sending actual email if SMTP credentials are missing (facilitates development)
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.log('[Email Verification] SMTP credentials missing. Email delivery simulated successfully.');
+        return true;
+    }
+
+    const transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.EMAIL_PORT || '587'),
+        secure: process.env.EMAIL_PORT === '465',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+
+    const mailOptions = {
+        from: `"Jawa Pay" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Verifikasi Akun Agen Jawa Pay',
+        html: `
+            <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #0a0814; color: #ffffff;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <span style="font-size: 28px; font-weight: 800; color: #6366f1; font-family: sans-serif;">Jawa Pay</span>
+                </div>
+                <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 12px; text-align: center; color: #ffffff;">Halo, ${name}!</h2>
+                <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; text-align: center; margin-bottom: 24px;">
+                    Terima kasih telah mendaftar sebagai agen di Jawa Pay. Langkah terakhir untuk mengaktifkan akun Anda adalah dengan melakukan verifikasi email melalui tombol di bawah ini:
+                </p>
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <a href="${verifyLink}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 700; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);">
+                        Verifikasi Akun Saya
+                    </a>
+                </div>
+                <p style="font-size: 11px; color: #64748b; line-height: 1.6; text-align: center;">
+                    Jika tombol di atas tidak berfungsi, salin dan tempel tautan berikut ke browser Anda:<br>
+                    <a href="${verifyLink}" style="color: #6366f1; word-break: break-all;">${verifyLink}</a>
+                </p>
+                <div style="margin-top: 30px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px; text-align: center; font-size: 12px; color: #64748b;">
+                    &copy; 2026 Jawa Pay. Hak Cipta Dilindungi.
+                </div>
+            </div>
+        `
+    };
+
+    return transporter.sendMail(mailOptions);
+}
+
+
 // Check if credentials are mock/default
 function isDigiflazzMock() {
     return !DIGIFLAZZ_USERNAME || 
@@ -169,31 +224,82 @@ function authenticateToken(req, res, next) {
 
 // Register
 app.post('/api/auth/register', async (req, res) => {
-    const { name, username, password } = req.body;
+    const { name, username, password, email } = req.body;
 
-    if (!name || !username || !password) {
+    if (!name || !username || !password || !email) {
         return res.status(400).json({ error: 'Data registrasi tidak lengkap.' });
     }
 
     try {
-        const exists = await User.findOne({ where: { username: username.toLowerCase() } });
-        if (exists) {
+        const usernameExists = await User.findOne({ where: { username: username.toLowerCase() } });
+        if (usernameExists) {
             return res.status(400).json({ error: 'Username sudah digunakan oleh agen lain.' });
         }
+
+        const emailExists = await User.findOne({ where: { email: email.toLowerCase() } });
+        if (emailExists) {
+            return res.status(400).json({ error: 'Email sudah digunakan oleh agen lain.' });
+        }
+
+        const verificationToken = crypto.randomBytes(32).toString('hex');
 
         const newUser = await User.create({
             id: 'USR' + Math.floor(Math.random() * 9000 + 1000),
             name: name,
             username: username.toLowerCase(),
             password: hashPassword(password),
-            balance: 500000 // Saldo awal Rp 500.000
+            email: email.toLowerCase(),
+            balance: 500000, // Saldo awal Rp 500.000
+            isVerified: false,
+            verificationToken: verificationToken
         });
 
-        console.log(`[Database SQL] User baru terdaftar: ${username} (${newUser.id})`);
-        res.json({ success: true, message: 'Registrasi berhasil. Silakan login.' });
+        console.log(`[Database SQL] User baru terdaftar (belum verifikasi): ${username} (${newUser.id})`);
+        
+        // Kirim email verifikasi
+        await sendVerificationEmail(email.toLowerCase(), name, verificationToken);
+
+        res.json({ success: true, message: 'Registrasi berhasil! Silakan cek email Anda untuk memverifikasi akun sebelum login.' });
     } catch (err) {
         console.error('Register database error:', err);
         res.status(500).json({ error: 'Gagal melakukan registrasi ke database.' });
+    }
+});
+
+// Verify Email
+app.get('/api/auth/verify', async (req, res) => {
+    const { token } = req.query;
+
+    if (!token) {
+        return res.status(400).send('Token verifikasi tidak ditemukan.');
+    }
+
+    try {
+        const user = await User.findOne({ where: { verificationToken: token } });
+        if (!user) {
+            return res.status(400).send(`
+                <div style="font-family: sans-serif; max-width: 500px; margin: 100px auto; padding: 40px; text-align: center; border: 1px solid #fca5a5; border-radius: 20px; background: #fff5f5; color: #b91c1c; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+                    <div style="font-size: 40px; margin-bottom: 20px;">❌</div>
+                    <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 12px;">Verifikasi Gagal</h2>
+                    <p style="font-size: 14px; line-height: 1.6;">Token verifikasi tidak valid, kedaluwarsa, atau sudah digunakan.</p>
+                </div>
+            `);
+        }
+
+        user.isVerified = true;
+        user.verificationToken = null;
+        await user.save();
+
+        res.send(`
+            <div style="font-family: sans-serif; max-width: 500px; margin: 100px auto; padding: 40px; text-align: center; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; background: #0a0814; color: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <div style="font-size: 40px; margin-bottom: 20px;">✅</div>
+                <h2 style="font-size: 24px; font-weight: 700; color: #6366f1; margin-bottom: 12px;">Verifikasi Berhasil!</h2>
+                <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px;">Akun Jawa Pay Anda telah berhasil diverifikasi dan aktif. Silakan kembali ke aplikasi dan masuk ke akun Anda.</p>
+            </div>
+        `);
+    } catch (err) {
+        console.error('Verify error:', err);
+        res.status(500).send('Terjadi kesalahan saat memverifikasi akun.');
     }
 });
 
@@ -209,6 +315,10 @@ app.post('/api/auth/login', async (req, res) => {
         const user = await User.findOne({ where: { username: username.toLowerCase() } });
         if (!user || user.password !== hashPassword(password)) {
             return res.status(400).json({ error: 'Username atau password Anda salah.' });
+        }
+
+        if (!user.isVerified) {
+            return res.status(400).json({ error: 'Akun Anda belum terverifikasi. Silakan cek email Anda untuk melakukan verifikasi.' });
         }
 
         const token = jwt.sign(
@@ -875,7 +985,7 @@ function parseDigiflazzProducts(raw) {
 }
 
 // Sync Database and Start Server
-db.sequelize.sync({ alter: process.env.DB_DIALECT === 'postgres' }).then(async () => {
+db.sequelize.sync({ alter: true }).then(async () => {
     console.log('[Sequelize] Database SQL Terhubung & Sinkron.');
     
     // Seed default demo user if DB is brand new
@@ -886,16 +996,29 @@ db.sequelize.sync({ alter: process.env.DB_DIALECT === 'postgres' }).then(async (
             name: 'Ahmad Agent',
             username: 'ahmad',
             password: hashPassword('password123'),
+            email: 'ahmadzyamm21@gmail.com',
+            isVerified: true,
             balance: 750000,
             markupFlat: 1500
         });
         console.log('[Sequelize Seed] Akun demo bawaan "ahmad" ("password123") sukses dibuat.');
     } else {
-        // Repair existing user if markupFlat is null
+        // Repair existing user if markupFlat is null or needs verification toggle for demo
         const ahmadUser = await User.findByPk('USR1001');
-        if (ahmadUser && (ahmadUser.markupFlat === null || ahmadUser.markupFlat === undefined)) {
-            ahmadUser.markupFlat = 1500;
-            await ahmadUser.save();
+        if (ahmadUser) {
+            let needsSave = false;
+            if (ahmadUser.markupFlat === null || ahmadUser.markupFlat === undefined) {
+                ahmadUser.markupFlat = 1500;
+                needsSave = true;
+            }
+            if (!ahmadUser.isVerified) {
+                ahmadUser.isVerified = true;
+                needsSave = true;
+            }
+            if (needsSave) {
+                await ahmadUser.save();
+                console.log('[Sequelize Repair] Akun demo ahmad diperbarui agar terverifikasi (isVerified: true).');
+            }
         }
     }
 

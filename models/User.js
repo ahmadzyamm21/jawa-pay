@@ -20,6 +20,20 @@ module.exports = (sequelize) => {
             type: DataTypes.STRING,
             allowNull: false
         },
+        email: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            defaultValue: 'temp@jawapay.com'
+        },
+        isVerified: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false
+        },
+        verificationToken: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
         balance: {
             type: DataTypes.INTEGER,
             allowNull: false,

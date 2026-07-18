@@ -66,6 +66,7 @@ const DOM = {
     
     registerName: document.getElementById('register-name'),
     registerUsername: document.getElementById('register-username'),
+    registerEmail: document.getElementById('register-email'),
     registerPassword: document.getElementById('register-password'),
     btnRegisterSubmit: document.getElementById('btn-register-submit'),
     
@@ -242,10 +243,17 @@ async function handleLogin() {
 async function handleRegister() {
     const name = DOM.registerName.value.trim();
     const username = DOM.registerUsername.value.trim();
+    const email = DOM.registerEmail.value.trim();
     const password = DOM.registerPassword.value;
 
-    if (!name || !username || !password) {
+    if (!name || !username || !email || !password) {
         alert('Silakan isi seluruh formulir pendaftaran.');
+        return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('Format alamat email tidak valid.');
         return;
     }
 
@@ -256,16 +264,17 @@ async function handleRegister() {
         const response = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, username, password })
+            body: JSON.stringify({ name, username, password, email })
         });
 
         const result = await response.json();
 
         if (response.ok) {
-            alert('Pendaftaran Berhasil! Silakan masuk ke akun Anda.');
+            alert(result.message || 'Registrasi Berhasil! Silakan cek email Anda untuk melakukan verifikasi sebelum login.');
             // Clear inputs
             DOM.registerName.value = '';
             DOM.registerUsername.value = '';
+            DOM.registerEmail.value = '';
             DOM.registerPassword.value = '';
             // Toggle back to login
             DOM.registerFormBox.style.display = 'none';
