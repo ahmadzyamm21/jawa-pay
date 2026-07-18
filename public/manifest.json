@@ -43,7 +43,7 @@
     {
       "src": "/jawapay_hero.png",
       "sizes": "1024x1024",
-      "type": "image/png",
+      "type": "image/jpeg",
       "form_factor": "narrow",
       "label": "Halaman Utama Jawa Pay"
     }
