@@ -512,28 +512,6 @@ function setupListeners() {
     DOM.btnRegisterSubmit.addEventListener('click', handleRegister);
     DOM.btnLogout.addEventListener('click', logout);
 
-    // Toggle Login Password Visibility
-    const btnToggleLoginPassword = document.getElementById('btn-toggle-login-password');
-    if (btnToggleLoginPassword) {
-        btnToggleLoginPassword.addEventListener('click', () => {
-            const type = DOM.loginPassword.getAttribute('type') === 'password' ? 'text' : 'password';
-            DOM.loginPassword.setAttribute('type', type);
-            btnToggleLoginPassword.setAttribute('data-lucide', type === 'password' ? 'eye' : 'eye-off');
-            if (window.lucide) window.lucide.createIcons();
-        });
-    }
-
-    // Toggle Register Password Visibility
-    const btnToggleRegisterPassword = document.getElementById('btn-toggle-register-password');
-    if (btnToggleRegisterPassword) {
-        btnToggleRegisterPassword.addEventListener('click', () => {
-            const type = DOM.registerPassword.getAttribute('type') === 'password' ? 'text' : 'password';
-            DOM.registerPassword.setAttribute('type', type);
-            btnToggleRegisterPassword.setAttribute('data-lucide', type === 'password' ? 'eye' : 'eye-off');
-            if (window.lucide) window.lucide.createIcons();
-        });
-    }
-
     // Terms & Privacy modals
     const linkTerms = document.getElementById('link-terms');
     const linkPrivacy = document.getElementById('link-privacy');
