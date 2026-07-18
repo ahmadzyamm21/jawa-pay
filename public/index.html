@@ -285,83 +285,111 @@
         </footer>
     </div>
 
-    <!-- Auth Section (Login/Register Card) -->
-    <div class="app-container" id="auth-container" style="display: none;">
-        <div class="glass-card" style="max-width: 420px; margin: 80px auto; padding: 32px; border-radius: 28px;">
-            <div style="text-align: center; margin-bottom: 28px;">
-                <div class="brand-icon" style="margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; float: none;">J</div>
-                <h2 class="brand-name">Jawa Pay</h2>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">Gerbang Transaksi Pulsa & Data</p>
-            </div>
-
+    <!-- Auth Section (Clean Crimson Native Layout) -->
+    <div id="auth-container" class="native-auth-wrapper" style="display: none;">
+        <div class="native-auth-content">
+            
             <!-- Login Form -->
             <div id="login-form-box">
-                <h3 style="font-size: 18px; margin-bottom: 20px; font-weight: 700; text-align: center; letter-spacing: -0.3px;">Masuk Ke Akun Agen</h3>
-                <div class="input-group">
-                    <label class="input-label" for="login-username">Username</label>
-                    <input type="text" id="login-username" class="input-field" placeholder="Masukkan username" style="font-size: 15px; padding: 12px 16px;" autocomplete="off">
+                <div class="native-auth-header">
+                    <h2 class="native-auth-title">Masuk</h2>
+                    <p class="native-auth-subtitle">Silakan login ke akun Agen Pulsa</p>
                 </div>
-                <div class="input-group" style="margin-top: -8px;">
-                    <label class="input-label" for="login-password">Password</label>
-                    <input type="password" id="login-password" class="input-field" placeholder="Masukkan password" style="font-size: 15px; padding: 12px 16px;">
+
+                <div class="native-input-group">
+                    <label for="login-username">Nama Pengguna</label>
+                    <i data-lucide="user" class="native-input-icon-left"></i>
+                    <input type="text" id="login-username" placeholder="Masukkan nama pengguna" autocomplete="off">
                 </div>
-                <button class="btn-action" id="btn-login-submit" style="margin-top: 10px; height: 50px; border-radius: 14px;">
-                    <i data-lucide="log-in" style="width: 18px; height: 18px;"></i>
-                    Masuk Sekarang
+
+                <div class="native-input-group">
+                    <label for="login-password">Kata Sandi</label>
+                    <i data-lucide="lock" class="native-input-icon-left"></i>
+                    <input type="password" id="login-password" placeholder="Masukkan kata sandi">
+                    <i data-lucide="eye" class="native-input-icon-right" id="btn-toggle-login-password"></i>
+                </div>
+
+                <button class="native-btn-primary" id="btn-login-submit">
+                    MASUK
                 </button>
-                <p style="font-size: 13px; color: var(--text-secondary); text-align: center; margin-top: 20px;">
-                    Belum punya akun agen? <a href="#" id="link-to-register" style="color: var(--primary); font-weight: 600; text-decoration: none;">Daftar di sini</a>
-                </p>
-                <p style="font-size: 13px; text-align: center; margin-top: 12px;">
-                    <a href="#" class="link-back-to-landing-btn" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 12px; opacity: 0.7; transition: var(--transition-smooth);"><i data-lucide="arrow-left" style="width: 12px; height: 12px; vertical-align: middle; margin-right: 4px; display: inline-block;"></i>Kembali ke Beranda</a>
-                </p>
+
+                <div class="native-divider">atau</div>
+
+                <button class="native-btn-google" id="btn-login-google" onclick="alert('Metode login Google masih dalam tahap integrasi uji coba.')">
+                    <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+
+                <div class="native-auth-links">
+                    <a href="#" class="native-auth-link-item" onclick="alert('Silakan hubungi admin di menu bantuan di bawah untuk memulihkan kata sandi Anda.')">Lupa kata sandi?</a>
+                    <a href="#" class="native-auth-link-item" id="link-to-register">Belum punya akun? <span style="text-decoration: underline;">Mendaftar</span></a>
+                    <a href="#" class="native-auth-link-item link-back-to-landing-btn" style="opacity: 0.8; font-size: 12px; margin-top: 16px;"><i data-lucide="arrow-left" style="width: 12px; height: 12px; vertical-align: middle; margin-right: 4px; display: inline-block;"></i>Kembali ke Beranda</a>
+                </div>
             </div>
 
-            <!-- Register Form (Hidden by Default) -->
+            <!-- Register Form -->
             <div id="register-form-box" style="display: none;">
-                <h3 style="font-size: 18px; margin-bottom: 20px; font-weight: 700; text-align: center; letter-spacing: -0.3px;">Daftar Akun Agen</h3>
-                <div class="input-group">
-                    <label class="input-label" for="register-name">Nama Lengkap</label>
-                    <input type="text" id="register-name" class="input-field" placeholder="Contoh: Ahmad Pulsa" style="font-size: 15px; padding: 12px 16px;" autocomplete="off">
+                <div class="native-auth-header">
+                    <h2 class="native-auth-title">Daftar</h2>
+                    <p class="native-auth-subtitle">Daftar Akun Agen Pulsa Baru</p>
                 </div>
-                <div class="input-group" style="margin-top: -8px;">
-                    <label class="input-label" for="register-username">Username</label>
-                    <input type="text" id="register-username" class="input-field" placeholder="Pilih username unik" style="font-size: 15px; padding: 12px 16px;" autocomplete="off">
+
+                <div class="native-input-group">
+                    <label for="register-name">Nama Lengkap</label>
+                    <i data-lucide="user-check" class="native-input-icon-left"></i>
+                    <input type="text" id="register-name" placeholder="Contoh: Ahmad Pulsa" autocomplete="off">
                 </div>
-                <div class="input-group" style="margin-top: -8px;">
-                    <label class="input-label" for="register-password">Password</label>
-                    <input type="password" id="register-password" class="input-field" placeholder="Buat password aman" style="font-size: 15px; padding: 12px 16px;">
+
+                <div class="native-input-group">
+                    <label for="register-username">Nama Pengguna</label>
+                    <i data-lucide="user" class="native-input-icon-left"></i>
+                    <input type="text" id="register-username" placeholder="Pilih username unik" autocomplete="off">
                 </div>
-                <button class="btn-action" id="btn-register-submit" style="margin-top: 10px; background: var(--secondary-gradient); height: 50px; border-radius: 14px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);">
-                    <i data-lucide="user-plus" style="width: 18px; height: 18px;"></i>
-                    Daftar Sekarang
+
+                <div class="native-input-group">
+                    <label for="register-password">Kata Sandi</label>
+                    <i data-lucide="lock" class="native-input-icon-left"></i>
+                    <input type="password" id="register-password" placeholder="Buat password aman">
+                    <i data-lucide="eye" class="native-input-icon-right" id="btn-toggle-register-password"></i>
+                </div>
+
+                <button class="native-btn-primary" id="btn-register-submit" style="color: #3b82f6;">
+                    DAFTAR SEKARANG
                 </button>
-                <p style="font-size: 13px; color: var(--text-secondary); text-align: center; margin-top: 20px;">
-                    Sudah punya akun? <a href="#" id="link-to-login" style="color: var(--primary); font-weight: 600; text-decoration: none;">Masuk di sini</a>
-                </p>
-                <p style="font-size: 13px; text-align: center; margin-top: 12px;">
-                    <a href="#" class="link-back-to-landing-btn" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 12px; opacity: 0.7; transition: var(--transition-smooth);"><i data-lucide="arrow-left" style="width: 12px; height: 12px; vertical-align: middle; margin-right: 4px; display: inline-block;"></i>Kembali ke Beranda</a>
-                </p>
-            </div>
-            
-            <!-- Midtrans KYC & Info Compliance Section -->
-            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.6;">
-                <div id="reviewer-credentials-box">
-                    <p style="font-weight: 600; color: var(--text-main); margin-bottom: 6px;">📢 Akun Uji Coba (Reviewer Midtrans):</p>
-                    <div style="background: rgba(255, 255, 255, 0.05); padding: 8px 12px; border-radius: 10px; display: inline-block; font-family: monospace; border: 1px dashed rgba(255, 255, 255, 0.12); margin-bottom: 12px;">
-                        Username: <span style="color: var(--primary); font-weight: bold;">ahmad</span> | Password: <span style="color: var(--primary); font-weight: bold;">password123</span>
-                    </div>
-                </div>
-                <p style="margin-bottom: 8px;">Jawa Pay adalah platform keagenan digital untuk pengisian pulsa, paket data, dan token PLN prabayar resmi.</p>
-                <div style="display: flex; justify-content: center; gap: 12px; margin-top: 12px;">
-                    <a href="#" id="link-terms" style="color: var(--primary); text-decoration: none; font-weight: 500;">Syarat & Ketentuan</a>
-                    <span>•</span>
-                    <a href="#" id="link-privacy" style="color: var(--primary); text-decoration: none; font-weight: 500;">Kebijakan Privasi</a>
-                    <span>•</span>
-                    <a href="mailto:ahmadzyamm21@gmail.com" style="color: var(--primary); text-decoration: none; font-weight: 500;">Hubungi Kami</a>
+
+                <div class="native-auth-links">
+                    <a href="#" class="native-auth-link-item" id="link-to-login">Sudah punya akun? <span style="text-decoration: underline;">Masuk di sini</span></a>
+                    <a href="#" class="native-auth-link-item link-back-to-landing-btn" style="opacity: 0.8; font-size: 12px; margin-top: 16px;"><i data-lucide="arrow-left" style="width: 12px; height: 12px; vertical-align: middle; margin-right: 4px; display: inline-block;"></i>Kembali ke Beranda</a>
                 </div>
             </div>
+
+            <!-- Midtrans KYC & Info Compliance Section (Only shown in sandbox) -->
+            <div id="reviewer-credentials-box" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.15); font-size: 12px; color: rgba(255, 255, 255, 0.8); text-align: center;">
+                <p style="font-weight: 600; color: #ffffff; margin-bottom: 6px;">📢 Akun Uji Coba (Reviewer Midtrans):</p>
+                <div style="background: rgba(255, 255, 255, 0.1); padding: 8px 12px; border-radius: 8px; display: inline-block; font-family: monospace; border: 1px dashed rgba(255, 255, 255, 0.3); margin-bottom: 8px;">
+                    Username: <span style="color: #ffffff; font-weight: bold;">ahmad</span> | Password: <span style="color: #ffffff; font-weight: bold;">password123</span>
+                </div>
+            </div>
+
         </div>
+
+        <!-- Support Footer -->
+        <footer class="native-auth-footer">
+            <a href="mailto:ahmadzyamm21@gmail.com" class="native-auth-footer-btn">
+                <i data-lucide="headphones" style="width: 16px; height: 16px;"></i>
+                Butuh bantuan?
+            </a>
+            <div style="margin-top: 8px; font-size: 11px; color: rgba(255, 255, 255, 0.5);">
+                <a href="#" id="link-terms" style="color: rgba(255, 255, 255, 0.7); text-decoration: none;">Syarat & Ketentuan</a>
+                <span>•</span>
+                <a href="#" id="link-privacy" style="color: rgba(255, 255, 255, 0.7); text-decoration: none;">Kebijakan Privasi</a>
+            </div>
+        </footer>
     </div>
 
     <!-- Main Dashboard Section (Hidden by Default until Login) -->
