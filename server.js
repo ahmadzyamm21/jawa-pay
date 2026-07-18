@@ -20,6 +20,12 @@ app.use(express.json());
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Explicitly serve assetlinks.json for Android TWA verification
+app.get('/.well-known/assetlinks.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
+});
+
 // Digiflazz Config
 const DIGIFLAZZ_USERNAME = process.env.DIGIFLAZZ_USERNAME;
 const DIGIFLAZZ_API_KEY = process.env.DIGIFLAZZ_API_KEY;
