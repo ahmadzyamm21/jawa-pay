@@ -186,11 +186,12 @@ async function checkAuth() {
             logout();
         }
     } else {
-        // Show landing page
-        DOM.authContainer.style.display = 'none';
+        // Go straight to login page by default
+        DOM.landingContainer.style.display = 'none';
         DOM.mainAppContainer.style.display = 'none';
-        DOM.landingContainer.style.display = 'block';
-        fetchLandingPrices();
+        DOM.authContainer.style.display = 'block';
+        DOM.loginFormBox.style.display = 'block';
+        DOM.registerFormBox.style.display = 'none';
     }
     if (window.lucide) window.lucide.createIcons();
 }
@@ -287,10 +288,11 @@ function logout() {
     state.user = null;
     state.balance = 0;
     state.transactions = [];
-    DOM.authContainer.style.display = 'none';
+    DOM.landingContainer.style.display = 'none';
     DOM.mainAppContainer.style.display = 'none';
-    DOM.landingContainer.style.display = 'block';
-    fetchLandingPrices();
+    DOM.authContainer.style.display = 'block';
+    DOM.loginFormBox.style.display = 'block';
+    DOM.registerFormBox.style.display = 'none';
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -493,6 +495,16 @@ function setupListeners() {
         e.preventDefault();
         DOM.registerFormBox.style.display = 'none';
         DOM.loginFormBox.style.display = 'block';
+    });
+
+    // Back to landing page action
+    document.querySelectorAll('.link-back-to-landing-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            DOM.authContainer.style.display = 'none';
+            DOM.landingContainer.style.display = 'block';
+            fetchLandingPrices();
+        });
     });
 
     // Auth actions
