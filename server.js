@@ -516,6 +516,11 @@ app.get('/api/diagnostics/catalog', (req, res) => {
     res.json({
         source: cachedProducts ? 'Digiflazz API Cache' : 'Local Fallback',
         cacheAge: cachedProducts ? Math.round((Date.now() - lastCacheTime) / 1000) + 's ago' : 'N/A',
+        isMockMode: isDigiflazzMock(),
+        hasUsername: !!DIGIFLAZZ_USERNAME,
+        usernameValue: DIGIFLAZZ_USERNAME ? DIGIFLAZZ_USERNAME.substring(0, 3) + '***' : '(empty)',
+        hasApiKey: !!DIGIFLAZZ_API_KEY,
+        apiKeyPrefix: DIGIFLAZZ_API_KEY ? DIGIFLAZZ_API_KEY.substring(0, 6) + '***' : '(empty)',
         catalog: summary
     });
 });
@@ -907,19 +912,23 @@ app.post('/api/payment/simulate-callback', async (req, res) => {
 
         // Digiflazz call
         let purchaseResult;
-        if (isDigiflazzMock() || buyer_sku_code.startsWith('telkomsel') || buyer_sku_code.startsWith('indosat')) {
+        if (isDigiflazzMock()) {
             purchaseResult = {
                 status: 'Sukses',
                 sn: 'SN-TRIPAY-' + Math.floor(Math.random() * 900000000 + 100000000),
                 trx_id: 'TRX' + Math.floor(Math.random() * 9000000 + 1000000)
             };
         } else {
-            // Map local fallback SKUs to valid Sandbox SKUs
             let actualSku = buyer_sku_code;
-            if (actualSku === 'telkomsel5k') actualSku = 'tele5';
-            else if (actualSku === 'telkomsel10k') actualSku = 'tele10';
-            else if (actualSku === 'xl5k') actualSku = 'xld5';
-            else if (actualSku === 'xl10k') actualSku = 'xld10';
+            
+            if (DIGIFLAZZ_API_KEY && DIGIFLAZZ_API_KEY.startsWith('dev-')) {
+                // Sandbox mode mapping
+                actualSku = 'tele5';
+                console.log(`[Tripay→Digiflazz Sandbox] Mapping SKU "${buyer_sku_code}" to "${actualSku}"`);
+            } else {
+                // Production: send as-is
+                console.log(`[Tripay→Digiflazz Production] Sending SKU "${actualSku}" directly`);
+            }
             
             const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + merchant_ref);
             const response = await axios.post(`${DIGIFLAZZ_BASE_URL}/transaction`, {
