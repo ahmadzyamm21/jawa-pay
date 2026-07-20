@@ -206,10 +206,15 @@ async function sendOtpEmail(email, name, otpCode) {
     }
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: 465,
+        secure: true,
         auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS.replace(/\s+/g, '') // Menghapus spasi jika pengguna memicu spasi dari App Password Google
+            user: process.env.EMAIL_USER.trim(),
+            pass: process.env.EMAIL_PASS.replace(/\s+/g, '').trim()
+        },
+        tls: {
+            rejectUnauthorized: false
         }
     });
 
@@ -1331,6 +1336,7 @@ db.sequelize.sync({ alter: true }).then(async () => {
         console.log(`📂 Menyajikan berkas frontend dari folder /public`);
         console.log(`🔑 Kredensial Digiflazz: ${isDigiflazzMock() ? 'Sandbox' : 'Live'}`);
         console.log(`🔒 Autentikasi JWT: AKTIF (Database SQL ${dbDialect === 'sqlite' ? 'SQLite' : 'PostgreSQL'})`);
+        console.log(`📧 Pengiriman Email (SMTP): ${process.env.EMAIL_USER && process.env.EMAIL_PASS ? 'AKTIF (' + process.env.EMAIL_USER + ')' : 'BELUM AKTIF (EMAIL_USER & EMAIL_PASS belum dipasang di Render)'}`);
         console.log(`====================================================`);
     });
 }).catch(err => {
