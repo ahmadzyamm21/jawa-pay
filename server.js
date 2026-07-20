@@ -239,7 +239,14 @@ async function sendOtpEmail(email, name, otpCode) {
         `
     };
 
-    return transporter.sendMail(mailOptions);
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`[Email OTP Success] OTP ${otpCode} BERHASIL terkirim ke Gmail ${email} (MessageID: ${info.messageId})`);
+        return true;
+    } catch (err) {
+        console.error(`[Email OTP Error] Gagal mengirim OTP ke Gmail ${email}:`, err.message || err);
+        throw err;
+    }
 }
 
 
