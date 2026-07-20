@@ -129,6 +129,9 @@ const DOM = {
     btnSaveSettings: document.getElementById('btn-save-settings'),
     settingsThemeDark: document.getElementById('settings-theme-dark'),
     settingsThemeLight: document.getElementById('settings-theme-light'),
+    btnCheckDigiflazzDeposit: document.getElementById('btn-check-digiflazz-deposit'),
+    settingsDigiflazzDeposit: document.getElementById('settings-digiflazz-deposit'),
+    btnManualSyncTrxs: document.getElementById('btn-manual-sync-trxs'),
 
     // E-money and Game selection filters
     subCategoryWrapper: document.getElementById('subcategory-wrapper'),
@@ -339,9 +342,23 @@ async function syncPendingTransactions() {
                     renderTransactions();
                 }
             }
+async function fetchDigiflazzDepositBalance() {
+    const token = getToken();
+    if (!token || !DOM.settingsDigiflazzDeposit) return;
+    DOM.settingsDigiflazzDeposit.textContent = 'Memuat...';
+    try {
+        const res = await fetch('/api/digiflazz/deposit-balance', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            DOM.settingsDigiflazzDeposit.textContent = formatRupiah(data.deposit || 0);
+        } else {
+            DOM.settingsDigiflazzDeposit.textContent = 'Gagal memuat';
         }
     } catch (err) {
-        console.warn('Sync pending status failed:', err);
+        console.warn('Fetch Digiflazz deposit balance error:', err);
+        DOM.settingsDigiflazzDeposit.textContent = 'Error';
     }
 }
 
@@ -729,10 +746,32 @@ function setupListeners() {
                 const currentAccent = localStorage.getItem('jawapay_accent') || 'indigo';
                 updateAccentSelectionUI(currentAccent);
 
+                // Fetch Digiflazz Deposit balance automatically when settings opened
+                fetchDigiflazzDepositBalance();
+
                 DOM.settingsModal.classList.add('show');
             } else {
                 alert('Silakan masuk terlebih dahulu.');
             }
+        });
+    }
+
+    if (DOM.btnCheckDigiflazzDeposit) {
+        DOM.btnCheckDigiflazzDeposit.addEventListener('click', fetchDigiflazzDepositBalance);
+    }
+
+    if (DOM.btnManualSyncTrxs) {
+        DOM.btnManualSyncTrxs.addEventListener('click', async () => {
+            DOM.btnManualSyncTrxs.disabled = true;
+            DOM.btnManualSyncTrxs.innerHTML = '<i data-lucide="loader" class="pulse-loader" style="width: 15px; height: 15px;"></i> Menyinkronkan...';
+            await syncPendingTransactions();
+            DOM.btnManualSyncTrxs.disabled = false;
+            DOM.btnManualSyncTrxs.innerHTML = '<i data-lucide="check" style="width: 15px; height: 15px;"></i> Berhasil Disinkronkan!';
+            if (window.lucide) window.lucide.createIcons();
+            setTimeout(() => {
+                DOM.btnManualSyncTrxs.innerHTML = '<i data-lucide="rotate-cw" style="width: 15px; height: 15px;"></i> Sinkronkan Status Riwayat Transaksi';
+                if (window.lucide) window.lucide.createIcons();
+            }, 3000);
         });
     }
 
