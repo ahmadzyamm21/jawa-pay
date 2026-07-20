@@ -496,6 +496,30 @@ app.get('/api/diagnostics/ip', (req, res) => {
     });
 });
 
+// Diagnostics: Show cached product catalog SKUs
+app.get('/api/diagnostics/catalog', (req, res) => {
+    const source = cachedProducts || FALLBACK_PRODUCTS;
+    const summary = {};
+    for (const cat of Object.keys(source)) {
+        summary[cat] = {};
+        const catObj = source[cat];
+        if (Array.isArray(catObj)) {
+            summary[cat] = catObj.map(p => ({ sku: p.buyer_sku_code, name: p.name, price: p.priceAgent }));
+        } else {
+            for (const provider of Object.keys(catObj)) {
+                if (Array.isArray(catObj[provider])) {
+                    summary[cat][provider] = catObj[provider].map(p => ({ sku: p.buyer_sku_code, name: p.name, price: p.priceAgent }));
+                }
+            }
+        }
+    }
+    res.json({
+        source: cachedProducts ? 'Digiflazz API Cache' : 'Local Fallback',
+        cacheAge: cachedProducts ? Math.round((Date.now() - lastCacheTime) / 1000) + 's ago' : 'N/A',
+        catalog: summary
+    });
+});
+
 // Get Balance (Protected)
 app.post('/api/balance', authenticateToken, async (req, res) => {
     try {
@@ -519,6 +543,8 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
     const foundProd = findProductBySku(buyer_sku_code);
     const productCost = foundProd ? foundProd.priceAgent : 10000;
     const productName = foundProd ? foundProd.name : 'Pulsa / Data';
+    
+    console.log(`[Transaction] SKU: "${buyer_sku_code}" | Product: "${productName}" | Cost: ${productCost} | Found in cache: ${foundProd ? 'YES' : 'NO (using fallback cost)'}`);
 
     try {
         // Managed database transaction
