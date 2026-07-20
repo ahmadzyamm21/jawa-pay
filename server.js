@@ -441,23 +441,6 @@ app.get('/api/products', async (req, res) => {
             return res.json(FALLBACK_PRODUCTS);
         }
 
-        app.get('/api/diagnostics/ip', (req, res) => {
-            const https = require('https');
-            https.get('https://api.ipify.org?format=json', (ipRes) => {
-                let data = '';
-                ipRes.on('data', chunk => data += chunk);
-                ipRes.on('end', () => {
-                    try {
-                        const parsed = JSON.parse(data);
-                        res.json({ ip: parsed.ip });
-                    } catch (e) {
-                        res.status(500).send('Error parsing IP response');
-                    }
-                });
-            }).on('error', (err) => {
-                res.status(500).json({ error: err.message });
-            });
-        });
 
         // Check if cache is still valid
         const isCacheValid = cachedProducts && (Date.now() - lastCacheTime < CACHE_DURATION);
@@ -493,6 +476,24 @@ app.get('/api/products', async (req, res) => {
         // Return cached products if they exist, otherwise return local fallback catalog
         res.json(cachedProducts || FALLBACK_PRODUCTS);
     }
+});
+
+app.get('/api/diagnostics/ip', (req, res) => {
+    const https = require('https');
+    https.get('https://api.ipify.org?format=json', (ipRes) => {
+        let data = '';
+        ipRes.on('data', chunk => data += chunk);
+        ipRes.on('end', () => {
+            try {
+                const parsed = JSON.parse(data);
+                res.json({ ip: parsed.ip });
+            } catch (e) {
+                res.status(500).send('Error parsing IP response');
+            }
+        });
+    }).on('error', (err) => {
+        res.status(500).json({ error: err.message });
+    });
 });
 
 // Get Balance (Protected)
