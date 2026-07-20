@@ -256,8 +256,10 @@ app.post('/api/auth/register', async (req, res) => {
 
         console.log(`[Database SQL] User baru terdaftar (belum verifikasi): ${username} (${newUser.id})`);
         
-        // Kirim email verifikasi
-        await sendVerificationEmail(email.toLowerCase(), name, verificationToken);
+        // Kirim email verifikasi secara asynchronous (tidak memblokir/membuat pendaftaran stuck)
+        sendVerificationEmail(email.toLowerCase(), name, verificationToken).catch(mailErr => {
+            console.error('[Email Error] Gagal mengirim email verifikasi:', mailErr.message || mailErr);
+        });
 
         res.json({ success: true, message: 'Registrasi berhasil! Silakan cek email Anda untuk memverifikasi akun sebelum login.' });
     } catch (err) {
