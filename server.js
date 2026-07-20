@@ -309,19 +309,21 @@ app.post('/api/auth/register', async (req, res) => {
             username: username.toLowerCase(),
             password: hashPassword(password),
             email: email.toLowerCase(),
-            balance: 500000, // Saldo awal Rp 500.000
-            isVerified: false,
+            balance: 0, // Saldo awal Rp 0
+            isVerified: true,
             verificationToken: verificationToken
         });
 
-        console.log(`[Database SQL] User baru terdaftar (belum verifikasi): ${username} (${newUser.id})`);
+        console.log(`[Database SQL] User baru terdaftar (otomatis aktif): ${username} (${newUser.id})`);
         
-        // Kirim email verifikasi secara asynchronous (tidak memblokir/membuat pendaftaran stuck)
-        sendVerificationEmail(email.toLowerCase(), name, verificationToken).catch(mailErr => {
-            console.error('[Email Error] Gagal mengirim email verifikasi:', mailErr.message || mailErr);
-        });
+        // Send email notification if SMTP credentials exist
+        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+            sendVerificationEmail(email.toLowerCase(), name, verificationToken).catch(mailErr => {
+                console.error('[Email Error] Gagal mengirim email verifikasi:', mailErr.message || mailErr);
+            });
+        }
 
-        res.json({ success: true, message: 'Registrasi berhasil! Silakan cek email Anda untuk memverifikasi akun sebelum login.' });
+        res.json({ success: true, message: 'Registrasi berhasil! Akun Anda sudah aktif. Silakan masuk ke aplikasi.' });
     } catch (err) {
         console.error('Register database error:', err);
         res.status(500).json({ error: 'Gagal melakukan registrasi ke database.' });
@@ -380,7 +382,8 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         if (!user.isVerified) {
-            return res.status(400).json({ error: 'Akun Anda belum terverifikasi. Silakan cek email Anda untuk melakukan verifikasi.' });
+            user.isVerified = true;
+            await user.save();
         }
 
         const token = jwt.sign(

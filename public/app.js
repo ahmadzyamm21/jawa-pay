@@ -276,7 +276,7 @@ async function handleRegister() {
         const result = await response.json();
 
         if (response.ok) {
-            alert(result.message || 'Registrasi Berhasil! Silakan cek email Anda untuk melakukan verifikasi sebelum login.');
+            alert(result.message || 'Registrasi Berhasil! Akun Anda sudah aktif. Silakan masuk ke aplikasi.');
             // Clear inputs
             DOM.registerName.value = '';
             DOM.registerUsername.value = '';
