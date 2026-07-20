@@ -537,10 +537,28 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
             } else {
                 // Map local fallback SKUs to valid Sandbox SKUs
                 let actualSku = buyer_sku_code;
-                if (actualSku === 'telkomsel5k') actualSku = 'tele5';
-                else if (actualSku === 'telkomsel10k') actualSku = 'tele10';
-                else if (actualSku === 'xl5k') actualSku = 'xld5';
-                else if (actualSku === 'xl10k') actualSku = 'xld10';
+                
+                if (DIGIFLAZZ_API_KEY && DIGIFLAZZ_API_KEY.startsWith('dev-')) {
+                    const skuLower = buyer_sku_code.toLowerCase();
+                    const nameLower = productName.toLowerCase();
+                    
+                    if (skuLower.includes('telkomsel') || nameLower.includes('telkomsel') || nameLower.includes('simpati')) {
+                        actualSku = productCost <= 8000 ? 'tele5' : 'tele10';
+                    } else if (skuLower.includes('xl') || skuLower.includes('xr') || skuLower.includes('axis') || nameLower.includes('xl') || nameLower.includes('axis')) {
+                        actualSku = productCost <= 8000 ? 'xld5' : 'xld10';
+                    } else if (skuLower.includes('indosat') || skuLower.includes('im3') || nameLower.includes('indosat') || nameLower.includes('im3')) {
+                        actualSku = productCost <= 8000 ? 'tele5' : 'tele10'; // Map Indosat sandbox to tele5/tele10 as sandbox only has those
+                    } else {
+                        // Fallback to tele5 or xld5
+                        actualSku = 'tele5';
+                    }
+                    console.log(`[Digiflazz Sandbox Mapping] Mapping SKU "${buyer_sku_code}" with cost ${productCost} to Sandbox SKU "${actualSku}"`);
+                } else {
+                    if (actualSku === 'telkomsel5k') actualSku = 'tele5';
+                    else if (actualSku === 'telkomsel10k') actualSku = 'tele10';
+                    else if (actualSku === 'xl5k') actualSku = 'xld5';
+                    else if (actualSku === 'xl10k') actualSku = 'xld10';
+                }
                 
                 const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id);
                 const response = await axios.post(`${DIGIFLAZZ_BASE_URL}/transaction`, {
@@ -925,6 +943,25 @@ app.post('/api/payment/simulate-callback', async (req, res) => {
 // ---------------- HELPER SEARCH FUNCTIONS ----------------
 
 function findProductBySku(sku) {
+    // 1. Check in cachedProducts first if it exists
+    if (cachedProducts) {
+        for (const cat of Object.keys(cachedProducts)) {
+            const catObj = cachedProducts[cat];
+            if (Array.isArray(catObj)) {
+                const found = catObj.find(p => p.buyer_sku_code === sku);
+                if (found) return found;
+            } else {
+                for (const provider of Object.keys(catObj)) {
+                    if (Array.isArray(catObj[provider])) {
+                        const found = catObj[provider].find(p => p.buyer_sku_code === sku);
+                        if (found) return found;
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Check in FALLBACK_PRODUCTS
     for (const cat of Object.keys(FALLBACK_PRODUCTS)) {
         const catObj = FALLBACK_PRODUCTS[cat];
         if (Array.isArray(catObj)) {
