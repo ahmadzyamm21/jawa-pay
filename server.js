@@ -76,8 +76,12 @@ const FALLBACK_PRODUCTS = {
     },
     data: {
         telkomsel: [
+            { buyer_sku_code: 'td1gb', name: 'Internet Max 1 GB', priceAgent: 6500, priceSell: 8500, desc: '1 GB Utama, 3 Hari' },
             { buyer_sku_code: 'td3gb', name: 'Internet Max 3 GB', priceAgent: 14500, priceSell: 18000, desc: '3 GB Utama, 30 Hari' },
+            { buyer_sku_code: 'td5gb', name: 'Combo Sakti 5 GB', priceAgent: 23500, priceSell: 27000, desc: '5 GB + 30 Mnt Telp, 30 Hari' },
             { buyer_sku_code: 'td10gb', name: 'Internet OMG! 10 GB', priceAgent: 38200, priceSell: 43000, desc: '10 GB OMG!, 30 Hari' },
+            { buyer_sku_code: 'td15gb', name: 'Combo Sakti 15 GB', priceAgent: 52000, priceSell: 58000, desc: '15 GB + Unlimited Chat, 30 Hari' },
+            { buyer_sku_code: 'td25gb', name: 'Internet OMG! 25 GB', priceAgent: 76500, priceSell: 84000, desc: '25 GB OMG! + 2 GB Nonton, 30 Hari' },
         ],
         indosat: [
             { buyer_sku_code: 'id5gb', name: 'Freedom Internet 5 GB', priceAgent: 22100, priceSell: 25000, desc: 'Kuota Utama, 30 Hari' },
@@ -1052,21 +1056,21 @@ function parseDigiflazzProducts(raw) {
             desc: item.desc || 'Prepaid Product'
         };
 
-        if (category === 'pulsa') {
-            if (brand.includes('telkomsel') || brand.includes('simpati')) products.pulsa.telkomsel.push(formatted);
+        if (category.includes('pulsa')) {
+            if (brand.includes('telkomsel') || brand.includes('simpati') || brand.includes('as') || brand.includes('by.u') || brand.includes('byu')) products.pulsa.telkomsel.push(formatted);
             else if (brand.includes('indosat') || brand.includes('im3')) products.pulsa.indosat.push(formatted);
             else if (brand.includes('xl') || brand.includes('axis')) products.pulsa.xl.push(formatted);
             else if (brand.includes('three') || brand.includes('tri')) products.pulsa.tri.push(formatted);
             else if (brand.includes('smartfren')) products.pulsa.smartfren.push(formatted);
-        } else if (category === 'data' || category === 'paket data') {
-            if (brand.includes('telkomsel')) products.data.telkomsel.push(formatted);
-            else if (brand.includes('indosat')) products.data.indosat.push(formatted);
-            else if (brand.includes('xl')) products.data.xl.push(formatted);
-            else if (brand.includes('tri')) products.data.tri.push(formatted);
+        } else if (category.includes('data') || category.includes('paket') || category.includes('internet') || category.includes('kuota')) {
+            if (brand.includes('telkomsel') || brand.includes('simpati') || brand.includes('as') || brand.includes('by.u') || brand.includes('byu')) products.data.telkomsel.push(formatted);
+            else if (brand.includes('indosat') || brand.includes('im3')) products.data.indosat.push(formatted);
+            else if (brand.includes('xl') || brand.includes('axis')) products.data.xl.push(formatted);
+            else if (brand.includes('three') || brand.includes('tri')) products.data.tri.push(formatted);
             else if (brand.includes('smartfren')) products.data.smartfren.push(formatted);
-        } else if (category === 'pln' || brand.includes('pln')) {
+        } else if (category.includes('pln') || brand.includes('pln')) {
             products.pln.global.push(formatted);
-        } else if (category === 'e-money' || category === 'emoney' || category === 'game') {
+        } else if (category.includes('e-money') || category.includes('emoney') || category.includes('game')) {
             if (brand.includes('gopay')) products.emoney.gopay.push(formatted);
             else if (brand.includes('ovo')) products.emoney.ovo.push(formatted);
             else if (brand.includes('dana')) products.emoney.dana.push(formatted);
