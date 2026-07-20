@@ -339,9 +339,14 @@ async function syncPendingTransactions() {
                     state.balance = profile.balance;
                     state.transactions = profile.transactions;
                     if (DOM.balanceValue) DOM.balanceValue.textContent = formatRupiah(state.balance);
-                    renderTransactions();
                 }
             }
+        }
+    } catch (err) {
+        console.warn('Sync pending status failed:', err);
+    }
+}
+
 async function fetchDigiflazzDepositBalance() {
     const token = getToken();
     if (!token || !DOM.settingsDigiflazzDeposit) return;
