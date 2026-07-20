@@ -573,7 +573,8 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
                     purchaseResult = {
                         status: data.status === 'Success' ? 'Sukses' : (data.status === 'Pending' ? 'Pending' : 'Gagal'),
                         sn: data.sn || '-',
-                        trx_id: data.trx_id || 'TRX' + Date.now()
+                        trx_id: data.trx_id || 'TRX' + Date.now(),
+                        message: data.message || 'Transaksi ditolak oleh operator.'
                     };
                 } else {
                     throw new Error('GATEWAY_ERROR');
@@ -581,7 +582,7 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
             }
 
             if (purchaseResult.status !== 'Sukses' && purchaseResult.status !== 'Pending') {
-                throw new Error('GATEWAY_DECLINED');
+                throw new Error(purchaseResult.message || 'GATEWAY_DECLINED');
             }
 
             // Deduct balance and save
@@ -639,8 +640,7 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
 
         if (error.message === 'USER_NOT_FOUND') return res.status(404).json({ error: 'User tidak ditemukan.' });
         if (error.message === 'INSUFFICIENT_BALANCE') return res.status(400).json({ error: 'Saldo Agen tidak mencukupi.' });
-        if (error.message === 'GATEWAY_DECLINED') return res.status(400).json({ error: 'Transaksi ditolak oleh operator.' });
-        res.status(500).json({ error: 'Gagal memproses transaksi.', details: errMsg });
+        res.status(400).json({ error: 'Transaksi ditolak.', details: errMsg });
     }
 });
 
