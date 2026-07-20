@@ -609,15 +609,20 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
             }
         });
     } catch (error) {
-        if (error.response) {
-            console.error('Error executing transaction (Response Data):', JSON.stringify(error.response.data));
-        } else {
-            console.error('Error executing transaction:', error.message);
+        let errMsg = error.message;
+        if (error.response && error.response.data) {
+            const respData = error.response.data;
+            if (respData.data && respData.data.message) {
+                errMsg = respData.data.message;
+            } else if (respData.message) {
+                errMsg = respData.message;
+            }
         }
+
         if (error.message === 'USER_NOT_FOUND') return res.status(404).json({ error: 'User tidak ditemukan.' });
         if (error.message === 'INSUFFICIENT_BALANCE') return res.status(400).json({ error: 'Saldo Agen tidak mencukupi.' });
         if (error.message === 'GATEWAY_DECLINED') return res.status(400).json({ error: 'Transaksi ditolak oleh operator.' });
-        res.status(500).json({ error: 'Gagal memproses transaksi di database.', details: error.message });
+        res.status(500).json({ error: 'Gagal memproses transaksi.', details: errMsg });
     }
 });
 
