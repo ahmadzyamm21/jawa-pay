@@ -69,6 +69,14 @@ const DOM = {
     registerEmail: document.getElementById('register-email'),
     registerPassword: document.getElementById('register-password'),
     btnRegisterSubmit: document.getElementById('btn-register-submit'),
+
+    // OTP Elements
+    otpFormBox: document.getElementById('otp-form-box'),
+    otpEmailTargetText: document.getElementById('otp-email-target-text'),
+    otpCodeInput: document.getElementById('otp-code-input'),
+    btnOtpSubmit: document.getElementById('btn-otp-submit'),
+    linkResendOtp: document.getElementById('link-resend-otp'),
+    linkOtpToLogin: document.getElementById('link-otp-to-login'),
     
     // Profile Header
     agentName: document.getElementById('agent-name'),
@@ -232,6 +240,19 @@ async function handleLogin() {
             DOM.loginPassword.value = '';
             // Load app
             await checkAuth();
+        } else if (result.requireOtp) {
+            state.pendingOtpEmail = result.email;
+            alert('Akun Anda belum diverifikasi. Silakan masukkan Kode OTP 6-digit yang dikirimkan ke email Anda.');
+            if (DOM.otpEmailTargetText) {
+                DOM.otpEmailTargetText.innerHTML = `Kode 6-digit telah dikirimkan ke <strong style="color: #38bdf8;">${state.pendingOtpEmail}</strong>. Sila periksa inbox / spam email Anda.`;
+            }
+            DOM.loginFormBox.style.display = 'none';
+            DOM.registerFormBox.style.display = 'none';
+            DOM.otpFormBox.style.display = 'block';
+            if (DOM.otpCodeInput) {
+                DOM.otpCodeInput.value = '';
+                DOM.otpCodeInput.focus();
+            }
         } else {
             alert('Gagal Masuk: ' + (result.error || 'Username atau password salah.'));
         }
@@ -275,18 +296,27 @@ async function handleRegister() {
 
         const result = await response.json();
 
-        if (response.ok) {
-            alert(result.message || 'Registrasi Berhasil! Akun Anda sudah aktif. Silakan masuk ke aplikasi.');
-            // Clear inputs
+        if (response.ok && result.requireOtp) {
+            state.pendingOtpEmail = result.email || email.toLowerCase();
+            alert(result.message || 'Registrasi Berhasil! Silakan masukkan Kode OTP 6-digit yang dikirim ke email Anda.');
+            
             DOM.registerName.value = '';
             DOM.registerUsername.value = '';
             DOM.registerEmail.value = '';
             DOM.registerPassword.value = '';
-            // Toggle back to login
+
+            if (DOM.otpEmailTargetText) {
+                DOM.otpEmailTargetText.innerHTML = `Kode 6-digit telah dikirimkan ke <strong style="color: #38bdf8;">${state.pendingOtpEmail}</strong>. Sila periksa inbox / spam email Anda.`;
+            }
             DOM.registerFormBox.style.display = 'none';
-            DOM.loginFormBox.style.display = 'block';
+            DOM.loginFormBox.style.display = 'none';
+            DOM.otpFormBox.style.display = 'block';
+            if (DOM.otpCodeInput) {
+                DOM.otpCodeInput.value = '';
+                DOM.otpCodeInput.focus();
+            }
         } else {
-            alert('Registrasi Gagal: ' + (result.error || 'Username sudah digunakan.'));
+            alert('Registrasi Gagal: ' + (result.error || 'Username atau email sudah digunakan.'));
         }
     } catch (err) {
         console.error(err);
@@ -295,6 +325,73 @@ async function handleRegister() {
         DOM.btnRegisterSubmit.disabled = false;
         DOM.btnRegisterSubmit.innerHTML = '<i data-lucide="user-plus" style="width: 18px; height: 18px;"></i> Daftar Sekarang';
         if (window.lucide) window.lucide.createIcons();
+    }
+}
+
+// Verify 6-Digit OTP
+async function handleVerifyOtp() {
+    const otpCode = DOM.otpCodeInput ? DOM.otpCodeInput.value.trim() : '';
+    const email = state.pendingOtpEmail;
+
+    if (!otpCode || otpCode.length < 6) {
+        alert('Silakan masukkan Kode OTP 6-digit secara lengkap.');
+        return;
+    }
+
+    DOM.btnOtpSubmit.disabled = true;
+    DOM.btnOtpSubmit.innerHTML = '⏳ Memverifikasi OTP...';
+
+    try {
+        const response = await fetch('/api/auth/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otpCode })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.token) {
+            alert(result.message || 'Verifikasi Berhasil! Selamat datang di Jawa Pay.');
+            localStorage.setItem('jawapay_token', result.token);
+            DOM.otpFormBox.style.display = 'none';
+            await checkAuth();
+        } else {
+            alert('Verifikasi Gagal: ' + (result.error || 'Kode OTP 6-digit salah atau kedaluwarsa.'));
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Gagal memverifikasi Kode OTP ke server.');
+    } finally {
+        DOM.btnOtpSubmit.disabled = false;
+        DOM.btnOtpSubmit.innerHTML = '<i data-lucide="check-circle" style="width: 18px; height: 18px;"></i> Verifikasi & Masuk Akun';
+        if (window.lucide) window.lucide.createIcons();
+    }
+}
+
+// Resend OTP Code
+async function handleResendOtp() {
+    const email = state.pendingOtpEmail;
+    if (!email) {
+        alert('Alamat email tidak ditemukan. Silakan lakukan pendaftaran ulang.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/auth/resend-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            alert(result.message || 'Kode OTP 6-digit baru telah dikirimkan ke email Anda.');
+        } else {
+            alert('Gagal Mengirim OTP: ' + (result.error || 'Terjadi kesalahan.'));
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Gagal menghubungi server.');
     }
 }
 
@@ -573,6 +670,23 @@ function setupListeners() {
     DOM.btnLoginSubmit.addEventListener('click', handleLogin);
     DOM.btnRegisterSubmit.addEventListener('click', handleRegister);
     DOM.btnLogout.addEventListener('click', logout);
+
+    if (DOM.btnOtpSubmit) {
+        DOM.btnOtpSubmit.addEventListener('click', handleVerifyOtp);
+    }
+    if (DOM.linkResendOtp) {
+        DOM.linkResendOtp.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleResendOtp();
+        });
+    }
+    if (DOM.linkOtpToLogin) {
+        DOM.linkOtpToLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (DOM.otpFormBox) DOM.otpFormBox.style.display = 'none';
+            if (DOM.loginFormBox) DOM.loginFormBox.style.display = 'block';
+        });
+    }
 
     // Terms & Privacy modals
     const linkTerms = document.getElementById('link-terms');

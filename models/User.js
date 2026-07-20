@@ -34,6 +34,14 @@ module.exports = (sequelize) => {
             type: DataTypes.STRING,
             allowNull: true
         },
+        otpCode: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        otpExpires: {
+            type: DataTypes.DATE,
+            allowNull: true
+        },
         balance: {
             type: DataTypes.INTEGER,
             allowNull: false,

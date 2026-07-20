@@ -194,15 +194,14 @@ function hashPassword(password) {
     return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-// Nodemailer setup for email verification dispatch
+// Nodemailer setup for email OTP verification dispatch
 const nodemailer = require('nodemailer');
-async function sendVerificationEmail(email, name, token) {
-    const verifyLink = `${process.env.APP_URL || 'https://jawa-pay.onrender.com'}/api/auth/verify?token=${token}`;
-    console.log(`[Email Verification] Link generated for ${email}: ${verifyLink}`);
 
-    // Skip sending actual email if SMTP credentials are missing (facilitates development)
+async function sendOtpEmail(email, name, otpCode) {
+    console.log(`[Email OTP] Dispatching 6-Digit OTP ${otpCode} to ${email}`);
+
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.log('[Email Verification] SMTP credentials missing. Email delivery simulated successfully.');
+        console.log(`[Email OTP Simulator] SMTP credentials missing in Render. OTP for ${email} is: ${otpCode}`);
         return true;
     }
 
@@ -217,30 +216,25 @@ async function sendVerificationEmail(email, name, token) {
     });
 
     const mailOptions = {
-        from: `"Jawa Pay" <${process.env.EMAIL_USER}>`,
+        from: `"Jawa Pay Security" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: 'Verifikasi Akun Agen Jawa Pay',
+        subject: `[${otpCode}] Kode OTP Verifikasi Akun Jawa Pay Anda`,
         html: `
-            <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #0a0814; color: #ffffff;">
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #0a0814; color: #ffffff; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);">
                 <div style="text-align: center; margin-bottom: 20px;">
-                    <span style="font-size: 28px; font-weight: 800; color: #6366f1; font-family: sans-serif;">Jawa Pay</span>
+                    <span style="font-size: 26px; font-weight: 800; color: #6366f1;">Jawa Pay</span>
+                    <p style="font-size: 11px; color: #94a3b8; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px;">Keamanan Akun Agen</p>
                 </div>
-                <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 12px; text-align: center; color: #ffffff;">Halo, ${name}!</h2>
-                <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; text-align: center; margin-bottom: 24px;">
-                    Terima kasih telah mendaftar sebagai agen di Jawa Pay. Langkah terakhir untuk mengaktifkan akun Anda adalah dengan melakukan verifikasi email melalui tombol di bawah ini:
+                <h2 style="font-size: 18px; font-weight: 700; color: #ffffff; text-align: center; margin-bottom: 8px;">Halo, ${name}!</h2>
+                <p style="font-size: 13px; color: #cbd5e1; text-align: center; line-height: 1.5; margin-bottom: 20px;">
+                    Gunakan kode OTP 6-digit berikut untuk mengaktifkan akun Agen Jawa Pay Anda. Kode ini berlaku selama <strong>10 menit</strong>:
                 </p>
-                <div style="text-align: center; margin-bottom: 24px;">
-                    <a href="${verifyLink}" style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 700; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);">
-                        Verifikasi Akun Saya
-                    </a>
+                <div style="background: rgba(99, 102, 241, 0.15); border: 2px dashed #6366f1; border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 20px;">
+                    <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #38bdf8;">${otpCode}</span>
                 </div>
-                <p style="font-size: 11px; color: #64748b; line-height: 1.6; text-align: center;">
-                    Jika tombol di atas tidak berfungsi, salin dan tempel tautan berikut ke browser Anda:<br>
-                    <a href="${verifyLink}" style="color: #6366f1; word-break: break-all;">${verifyLink}</a>
+                <p style="font-size: 11px; color: #64748b; text-align: center; margin-bottom: 0;">
+                    Demi keamanan akun Anda, jangan berikan kode OTP ini kepada siapa pun termasuk pihak Jawa Pay.
                 </p>
-                <div style="margin-top: 30px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px; text-align: center; font-size: 12px; color: #64748b;">
-                    &copy; 2026 Jawa Pay. Hak Cipta Dilindungi.
-                </div>
             </div>
         `
     };
@@ -282,7 +276,7 @@ function authenticateToken(req, res, next) {
 
 // ---------------- AUTENTIKASI ROUTES ----------------
 
-// Register
+// Register (Initiates 6-Digit Email OTP Verification)
 app.post('/api/auth/register', async (req, res) => {
     const { name, username, password, email } = req.body;
 
@@ -301,7 +295,9 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(400).json({ error: 'Email sudah digunakan oleh agen lain.' });
         }
 
-        const verificationToken = crypto.randomBytes(32).toString('hex');
+        // Generate 6-digit numeric OTP code and 10-minute expiration
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
         const newUser = await User.create({
             id: 'USR' + Math.floor(Math.random() * 9000 + 1000),
@@ -309,61 +305,122 @@ app.post('/api/auth/register', async (req, res) => {
             username: username.toLowerCase(),
             password: hashPassword(password),
             email: email.toLowerCase(),
-            balance: 0, // Saldo awal Rp 0
-            isVerified: true,
-            verificationToken: verificationToken
+            balance: 0,
+            isVerified: false,
+            otpCode: otpCode,
+            otpExpires: otpExpires
         });
 
-        console.log(`[Database SQL] User baru terdaftar (otomatis aktif): ${username} (${newUser.id})`);
-        
-        // Send email notification if SMTP credentials exist
-        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            sendVerificationEmail(email.toLowerCase(), name, verificationToken).catch(mailErr => {
-                console.error('[Email Error] Gagal mengirim email verifikasi:', mailErr.message || mailErr);
-            });
-        }
+        console.log(`[Database SQL] User baru terdaftar (menunggu OTP): ${username} (${newUser.id}) | OTP: ${otpCode}`);
 
-        res.json({ success: true, message: 'Registrasi berhasil! Akun Anda sudah aktif. Silakan masuk ke aplikasi.' });
+        // Dispatch OTP Email
+        sendOtpEmail(email.toLowerCase(), name, otpCode).catch(mailErr => {
+            console.error('[Email OTP Error] Gagal mengirim OTP email:', mailErr.message || mailErr);
+        });
+
+        res.json({
+            success: true,
+            requireOtp: true,
+            email: email.toLowerCase(),
+            message: 'Registrasi berhasil! Kode OTP 6-digit telah dikirim ke email Anda.'
+        });
     } catch (err) {
         console.error('Register database error:', err);
         res.status(500).json({ error: 'Gagal melakukan registrasi ke database.' });
     }
 });
 
-// Verify Email
-app.get('/api/auth/verify', async (req, res) => {
-    const { token } = req.query;
+// Verify 6-Digit Email OTP
+app.post('/api/auth/verify-otp', async (req, res) => {
+    const { email, otpCode } = req.body;
 
-    if (!token) {
-        return res.status(400).send('Token verifikasi tidak ditemukan.');
+    if (!email || !otpCode) {
+        return res.status(400).json({ error: 'Email dan Kode OTP wajib diisi.' });
     }
 
     try {
-        const user = await User.findOne({ where: { verificationToken: token } });
+        const user = await User.findOne({ where: { email: email.toLowerCase() } });
         if (!user) {
-            return res.status(400).send(`
-                <div style="font-family: sans-serif; max-width: 500px; margin: 100px auto; padding: 40px; text-align: center; border: 1px solid #fca5a5; border-radius: 20px; background: #fff5f5; color: #b91c1c; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
-                    <div style="font-size: 40px; margin-bottom: 20px;">❌</div>
-                    <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 12px;">Verifikasi Gagal</h2>
-                    <p style="font-size: 14px; line-height: 1.6;">Token verifikasi tidak valid, kedaluwarsa, atau sudah digunakan.</p>
-                </div>
-            `);
+            return res.status(404).json({ error: 'Akun dengan email tersebut tidak ditemukan.' });
         }
 
+        if (user.isVerified) {
+            // Already verified, generate token and log in
+            const token = jwt.sign(
+                { id: user.id, username: user.username, name: user.name },
+                JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+            return res.json({
+                success: true,
+                token: token,
+                user: { id: user.id, name: user.name, username: user.username, markupFlat: user.markupFlat }
+            });
+        }
+
+        const cleanOtp = otpCode.toString().trim();
+        if (!user.otpCode || user.otpCode !== cleanOtp) {
+            return res.status(400).json({ error: 'Kode OTP 6-digit salah. Silakan periksa kembali email Anda.' });
+        }
+
+        if (new Date() > new Date(user.otpExpires)) {
+            return res.status(400).json({ error: 'Kode OTP 6-digit telah kedaluwarsa (lebih dari 10 menit). Silakan minta kode baru.' });
+        }
+
+        // Activate account
         user.isVerified = true;
-        user.verificationToken = null;
+        user.otpCode = null;
+        user.otpExpires = null;
         await user.save();
 
-        res.send(`
-            <div style="font-family: sans-serif; max-width: 500px; margin: 100px auto; padding: 40px; text-align: center; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; background: #0a0814; color: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                <div style="font-size: 40px; margin-bottom: 20px;">✅</div>
-                <h2 style="font-size: 24px; font-weight: 700; color: #6366f1; margin-bottom: 12px;">Verifikasi Berhasil!</h2>
-                <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px;">Akun Jawa Pay Anda telah berhasil diverifikasi dan aktif. Silakan kembali ke aplikasi dan masuk ke akun Anda.</p>
-            </div>
-        `);
+        console.log(`[Email OTP] Akun ${user.username} (${user.email}) berhasil diverifikasi via OTP!`);
+
+        const token = jwt.sign(
+            { id: user.id, username: user.username, name: user.name },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({
+            success: true,
+            message: 'Verifikasi Kode OTP Berhasil! Selamat datang di Jawa Pay.',
+            token: token,
+            user: { id: user.id, name: user.name, username: user.username, markupFlat: user.markupFlat }
+        });
     } catch (err) {
-        console.error('Verify error:', err);
-        res.status(500).send('Terjadi kesalahan saat memverifikasi akun.');
+        console.error('Verify OTP Error:', err);
+        res.status(500).json({ error: 'Gagal memverifikasi Kode OTP.' });
+    }
+});
+
+// Resend OTP Code
+app.post('/api/auth/resend-otp', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Alamat email wajib diisi.' });
+    }
+
+    try {
+        const user = await User.findOne({ where: { email: email.toLowerCase() } });
+        if (!user) {
+            return res.status(404).json({ error: 'Akun dengan email tersebut tidak ditemukan.' });
+        }
+
+        const newOtpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        user.otpCode = newOtpCode;
+        user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+
+        console.log(`[Email OTP] Resending OTP ${newOtpCode} to ${email}`);
+        sendOtpEmail(user.email, user.name, newOtpCode).catch(mailErr => {
+            console.error('[Email OTP Error] Resend failed:', mailErr.message || mailErr);
+        });
+
+        res.json({ success: true, message: 'Kode OTP 6-digit baru telah dikirimkan ke email Anda.' });
+    } catch (err) {
+        console.error('Resend OTP Error:', err);
+        res.status(500).json({ error: 'Gagal mengirim ulang Kode OTP.' });
     }
 });
 
@@ -382,8 +439,11 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         if (!user.isVerified) {
-            user.isVerified = true;
-            await user.save();
+            return res.status(400).json({
+                error: 'Akun Anda belum diverifikasi.',
+                requireOtp: true,
+                email: user.email
+            });
         }
 
         const token = jwt.sign(

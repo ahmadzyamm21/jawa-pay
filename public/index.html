@@ -347,6 +347,29 @@
                     <a href="#" class="link-back-to-landing-btn" style="color: var(--text-secondary); text-decoration: none; font-weight: 500; font-size: 12px; opacity: 0.7; transition: var(--transition-smooth);"><i data-lucide="arrow-left" style="width: 12px; height: 12px; vertical-align: middle; margin-right: 4px; display: inline-block;"></i>Kembali ke Beranda</a>
                 </p>
             </div>
+
+            <!-- OTP Verification Form Box (Hidden by Default) -->
+            <div id="otp-form-box" style="display: none;">
+                <h3 style="font-size: 18px; margin-bottom: 8px; font-weight: 700; text-align: center; letter-spacing: -0.3px;">Verifikasi Kode OTP 🔒</h3>
+                <p style="font-size: 12px; color: var(--text-secondary); text-align: center; margin-bottom: 20px;" id="otp-email-target-text">
+                    Kode 6-digit telah dikirimkan ke email Anda.
+                </p>
+
+                <div class="input-group">
+                    <label class="input-label" for="otp-code-input" style="text-align: center; display: block;">Masukkan Kode OTP 6-Digit</label>
+                    <input type="text" id="otp-code-input" class="input-field" placeholder="123456" maxlength="6" style="font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 6px; padding: 12px; color: #38bdf8; background: rgba(0,0,0,0.3);" autocomplete="off">
+                </div>
+
+                <button class="btn-action" id="btn-otp-submit" style="margin-top: 10px; background: var(--primary-gradient); height: 50px; border-radius: 14px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);">
+                    <i data-lucide="check-circle" style="width: 18px; height: 18px;"></i>
+                    Verifikasi & Masuk Akun
+                </button>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; font-size: 12px;">
+                    <a href="#" id="link-resend-otp" style="color: var(--primary); font-weight: 600; text-decoration: none;">Kirim Ulang Kode OTP</a>
+                    <a href="#" id="link-otp-to-login" style="color: var(--text-secondary); text-decoration: none;">Batal / Kembali Login</a>
+                </div>
+            </div>
             
             <!-- Midtrans KYC & Info Compliance Section -->
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.6;">
