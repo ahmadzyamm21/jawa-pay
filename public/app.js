@@ -174,6 +174,9 @@ async function checkAuth() {
                 DOM.balanceValue.textContent = formatRupiah(state.balance);
                 renderTransactions();
                 
+                // Automatically sync any pending transactions
+                syncPendingTransactions();
+                
                 // Initialize core app components
                 await fetchProducts();
                 await fetchPaymentChannels();
@@ -312,6 +315,34 @@ function getMarkupFlat() {
         return 1500;
     }
     return state.user.markupFlat;
+}
+
+async function syncPendingTransactions() {
+    const token = getToken();
+    if (!token) return;
+    try {
+        const res = await fetch('/api/transactions/sync', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.updated > 0) {
+                const profRes = await fetch('/api/auth/profile', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (profRes.ok) {
+                    const profile = await profRes.json();
+                    state.balance = profile.balance;
+                    state.transactions = profile.transactions;
+                    if (DOM.balanceValue) DOM.balanceValue.textContent = formatRupiah(state.balance);
+                    renderTransactions();
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('Sync pending status failed:', err);
+    }
 }
 
 async function fetchBalance() {
@@ -930,6 +961,10 @@ async function executeDirectTransaction() {
 
             showReceipt(trx);
             resetForm();
+            
+            // Auto sync pending status after 5s and 12s when operator finishes processing
+            setTimeout(syncPendingTransactions, 4000);
+            setTimeout(syncPendingTransactions, 10000);
         } else {
             alert('Transaksi Gagal: ' + (result.error || 'Terjadi kesalahan.') + (result.details ? '\nDetail: ' + result.details : ''));
         }

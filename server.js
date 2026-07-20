@@ -702,7 +702,7 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
             
             // Create Transaction record in DB
             const newTrx = await Transaction.create({
-                id: purchaseResult.trx_id,
+                id: ref_id,
                 userId: userId,
                 category: foundProd ? foundProd.category : 'pulsa',
                 productName: productName,
@@ -753,6 +753,56 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
     }
 });
 
+// Sync / Update Status for Pending Transactions
+app.post('/api/transactions/sync', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const pendingTrxs = await Transaction.findAll({
+            where: { userId: userId, status: 'Pending' }
+        });
+
+        let updatedCount = 0;
+        for (const trx of pendingTrxs) {
+            // Check status via Digiflazz if API key exists
+            if (DIGIFLAZZ_USERNAME && DIGIFLAZZ_API_KEY && !DIGIFLAZZ_API_KEY.startsWith('dev-')) {
+                try {
+                    const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + trx.id);
+                    const response = await axios.post(`${DIGIFLAZZ_BASE_URL}/transaction`, {
+                        username: DIGIFLAZZ_USERNAME,
+                        buyer_sku_code: 'tele5', // Dummy sku for status check endpoint requirement
+                        customer_no: trx.target,
+                        ref_id: trx.id,
+                        sign: sign
+                    });
+                    const data = response.data && response.data.data;
+                    if (data && (data.status === 'Success' || data.status === 'Sukses')) {
+                        trx.status = 'Sukses';
+                        if (data.sn) trx.sn = data.sn;
+                        await trx.save();
+                        updatedCount++;
+                    } else if (data && (data.status === 'Failed' || data.status === 'Gagal')) {
+                        trx.status = 'Gagal';
+                        await trx.save();
+                        updatedCount++;
+                    }
+                } catch (apiErr) {
+                    console.warn(`Sync status for ${trx.id} skipped: ${apiErr.message}`);
+                }
+            } else {
+                // In mock/sandbox mode or manual trigger, mark pending as Sukses
+                trx.status = 'Sukses';
+                await trx.save();
+                updatedCount++;
+            }
+        }
+
+        res.json({ success: true, updated: updatedCount, totalPending: pendingTrxs.length });
+    } catch (err) {
+        console.error('Error syncing pending transactions:', err);
+        res.status(500).json({ error: 'Gagal menyinkronkan status.' });
+    }
+});
+
 
 // ---------------- DIGIFLAZZ WEBHOOK CALLBACK ----------------
 
@@ -761,44 +811,55 @@ app.post('/api/digiflazz/callback', async (req, res) => {
         const payload = req.body;
         console.log('[Digiflazz Webhook Received]:', JSON.stringify(payload));
 
-        let data = payload;
+        let data = payload.data || payload;
         if (payload.post) {
             try {
-                data = JSON.parse(payload.post);
+                const parsed = JSON.parse(payload.post);
+                data = parsed.data || parsed;
             } catch (e) {
-                data = payload;
+                data = payload.data || payload;
             }
         }
 
-        const { trx_id, ref_id, status, sn } = data;
+        const { trx_id, ref_id, status, sn, rc, message } = data;
+        const lookupKey = ref_id || trx_id;
 
-        if (!trx_id) {
-            return res.status(400).json({ error: 'Missing trx_id' });
+        if (!lookupKey) {
+            console.warn('[Digiflazz Webhook] Missing ref_id and trx_id in callback payload:', data);
+            return res.status(400).json({ error: 'Missing ref_id or trx_id' });
         }
 
         // Handle database updates
         await sequelize.transaction(async (t) => {
-            const trx = await Transaction.findByPk(trx_id, { transaction: t, lock: true });
+            // Search by ref_id first, then by trx_id
+            let trx = null;
+            if (ref_id) {
+                trx = await Transaction.findByPk(ref_id, { transaction: t, lock: true });
+            }
+            if (!trx && trx_id) {
+                trx = await Transaction.findByPk(trx_id, { transaction: t, lock: true });
+            }
+
             if (!trx) {
-                console.warn(`[Digiflazz Webhook] Transaction with ID ${trx_id} not found in database.`);
+                console.warn(`[Digiflazz Webhook] Transaction with ref_id "${ref_id}" / trx_id "${trx_id}" not found in database.`);
                 return;
             }
 
             const oldStatus = trx.status;
-            const newStatus = status === 'Success' || status === 'Sukses' ? 'Sukses' : (status === 'Failed' || status === 'Gagal' ? 'Gagal' : oldStatus);
+            const newStatus = (status === 'Success' || status === 'Sukses') ? 'Sukses' : ((status === 'Failed' || status === 'Gagal') ? 'Gagal' : oldStatus);
 
-            if (oldStatus !== newStatus) {
+            if (oldStatus !== newStatus || (sn && !trx.sn)) {
                 trx.status = newStatus;
-                if (sn) trx.sn = sn;
+                if (sn && sn !== '-') trx.sn = sn;
                 await trx.save({ transaction: t });
 
-                console.log(`[Digiflazz Webhook] Transaction ${trx_id} status updated from ${oldStatus} to ${newStatus}.`);
+                console.log(`[Digiflazz Webhook] Transaction ${trx.id} status updated from ${oldStatus} to ${newStatus}. SN: ${sn || 'N/A'}`);
 
                 // If status changed to Gagal, refund user's balance
-                if (newStatus === 'Gagal' && trx.paymentMethod === 'Saldo Agen') {
+                if (newStatus === 'Gagal' && oldStatus !== 'Gagal' && trx.paymentMethod === 'Saldo Agen') {
                     const user = await User.findByPk(trx.userId, { transaction: t, lock: true });
                     if (user) {
-                        const refundAmount = trx.priceAgent - trx.discountApplied; // The actual cost deducted
+                        const refundAmount = trx.priceAgent - (trx.discountApplied || 0);
                         user.balance += refundAmount;
                         await user.save({ transaction: t });
                         console.log(`[Digiflazz Webhook] Refunded Rp ${refundAmount} to user ${user.id} due to failed transaction.`);
