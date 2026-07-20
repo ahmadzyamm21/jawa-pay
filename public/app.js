@@ -931,7 +931,7 @@ async function executeDirectTransaction() {
             showReceipt(trx);
             resetForm();
         } else {
-            alert('Transaksi Gagal: ' + (result.error || 'Terjadi kesalahan.'));
+            alert('Transaksi Gagal: ' + (result.error || 'Terjadi kesalahan.') + (result.details ? '\nDetail: ' + result.details : ''));
         }
     } catch (err) {
         console.error(err);

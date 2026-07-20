@@ -617,7 +617,7 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
         if (error.message === 'USER_NOT_FOUND') return res.status(404).json({ error: 'User tidak ditemukan.' });
         if (error.message === 'INSUFFICIENT_BALANCE') return res.status(400).json({ error: 'Saldo Agen tidak mencukupi.' });
         if (error.message === 'GATEWAY_DECLINED') return res.status(400).json({ error: 'Transaksi ditolak oleh operator.' });
-        res.status(500).json({ error: 'Gagal memproses transaksi di database.' });
+        res.status(500).json({ error: 'Gagal memproses transaksi di database.', details: error.message });
     }
 });
 
