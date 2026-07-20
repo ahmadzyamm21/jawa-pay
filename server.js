@@ -547,17 +547,19 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
 
             // API Purchase Simulation / Call
             let purchaseResult;
-            if (isDigiflazzMock() || buyer_sku_code.startsWith('telkomsel') || buyer_sku_code.startsWith('indosat')) {
+            if (isDigiflazzMock()) {
+                // MOCK mode: No Digiflazz credentials configured
                 purchaseResult = {
                     status: 'Sukses',
                     sn: 'SN-DB-' + Math.floor(Math.random() * 900000000 + 100000000),
                     trx_id: 'TRX' + Math.floor(Math.random() * 9000000 + 1000000)
                 };
             } else {
-                // Map local fallback SKUs to valid Sandbox SKUs
+                // LIVE MODE: Send transaction to Digiflazz API
                 let actualSku = buyer_sku_code;
                 
                 if (DIGIFLAZZ_API_KEY && DIGIFLAZZ_API_KEY.startsWith('dev-')) {
+                    // Sandbox mode: Map SKUs to valid sandbox test SKUs
                     const skuLower = buyer_sku_code.toLowerCase();
                     const nameLower = productName.toLowerCase();
                     
@@ -566,17 +568,14 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
                     } else if (skuLower.includes('xl') || skuLower.includes('xr') || skuLower.includes('axis') || nameLower.includes('xl') || nameLower.includes('axis')) {
                         actualSku = productCost <= 8000 ? 'xld5' : 'xld10';
                     } else if (skuLower.includes('indosat') || skuLower.includes('im3') || nameLower.includes('indosat') || nameLower.includes('im3')) {
-                        actualSku = productCost <= 8000 ? 'tele5' : 'tele10'; // Map Indosat sandbox to tele5/tele10 as sandbox only has those
+                        actualSku = productCost <= 8000 ? 'tele5' : 'tele10';
                     } else {
-                        // Fallback to tele5 or xld5
                         actualSku = 'tele5';
                     }
-                    console.log(`[Digiflazz Sandbox Mapping] Mapping SKU "${buyer_sku_code}" with cost ${productCost} to Sandbox SKU "${actualSku}"`);
+                    console.log(`[Digiflazz Sandbox Mapping] Mapping SKU "${buyer_sku_code}" to Sandbox SKU "${actualSku}"`);
                 } else {
-                    if (actualSku === 'telkomsel5k') actualSku = 'tele5';
-                    else if (actualSku === 'telkomsel10k') actualSku = 'tele10';
-                    else if (actualSku === 'xl5k') actualSku = 'xld5';
-                    else if (actualSku === 'xl10k') actualSku = 'xld10';
+                    // Production mode: Use the SKU directly from the catalog as-is!
+                    console.log(`[Digiflazz Production] Sending SKU "${actualSku}" directly to Digiflazz Production API`);
                 }
                 
                 const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id);
