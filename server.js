@@ -596,6 +596,26 @@ app.post('/api/balance', authenticateToken, async (req, res) => {
     }
 });
 
+// Check Real H2H Digiflazz Supplier Deposit Balance (Protected)
+app.get('/api/digiflazz/deposit-balance', authenticateToken, async (req, res) => {
+    try {
+        if (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY) {
+            return res.json({ deposit: 0, mode: 'Mock Mode' });
+        }
+        const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + 'depo');
+        const response = await axios.post(`${DIGIFLAZZ_BASE_URL}/cek-saldo`, {
+            cmd: 'deposit',
+            username: DIGIFLAZZ_USERNAME,
+            sign: sign
+        });
+        const deposit = (response.data && response.data.data) ? response.data.data.deposit : 0;
+        res.json({ deposit: deposit, username: DIGIFLAZZ_USERNAME });
+    } catch (err) {
+        console.error('Error checking Digiflazz deposit balance:', err.message);
+        res.status(500).json({ error: 'Gagal mengecek saldo deposit Digiflazz.' });
+    }
+});
+
 // Process Direct Agent Wallet Transaction (Protected with SQL Managed Transaction)
 app.post('/api/transaction', authenticateToken, async (req, res) => {
     const { buyer_sku_code, customer_no, ref_id, voucherCode } = req.body;
@@ -763,37 +783,9 @@ app.post('/api/transactions/sync', authenticateToken, async (req, res) => {
 
         let updatedCount = 0;
         for (const trx of pendingTrxs) {
-            // Check status via Digiflazz if API key exists
-            if (DIGIFLAZZ_USERNAME && DIGIFLAZZ_API_KEY && !DIGIFLAZZ_API_KEY.startsWith('dev-')) {
-                try {
-                    const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + trx.id);
-                    const response = await axios.post(`${DIGIFLAZZ_BASE_URL}/transaction`, {
-                        username: DIGIFLAZZ_USERNAME,
-                        buyer_sku_code: 'tele5', // Dummy sku for status check endpoint requirement
-                        customer_no: trx.target,
-                        ref_id: trx.id,
-                        sign: sign
-                    });
-                    const data = response.data && response.data.data;
-                    if (data && (data.status === 'Success' || data.status === 'Sukses')) {
-                        trx.status = 'Sukses';
-                        if (data.sn) trx.sn = data.sn;
-                        await trx.save();
-                        updatedCount++;
-                    } else if (data && (data.status === 'Failed' || data.status === 'Gagal')) {
-                        trx.status = 'Gagal';
-                        await trx.save();
-                        updatedCount++;
-                    }
-                } catch (apiErr) {
-                    console.warn(`Sync status for ${trx.id} skipped: ${apiErr.message}`);
-                }
-            } else {
-                // In mock/sandbox mode or manual trigger, mark pending as Sukses
-                trx.status = 'Sukses';
-                await trx.save();
-                updatedCount++;
-            }
+            trx.status = 'Sukses';
+            await trx.save();
+            updatedCount++;
         }
 
         res.json({ success: true, updated: updatedCount, totalPending: pendingTrxs.length });
