@@ -206,12 +206,10 @@ async function sendOtpEmail(email, name, otpCode) {
     }
 
     const transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.EMAIL_PORT || '587'),
-        secure: process.env.EMAIL_PORT === '465',
+        service: 'gmail',
         auth: {
             user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
+            pass: process.env.EMAIL_PASS.replace(/\s+/g, '') // Menghapus spasi jika pengguna memicu spasi dari App Password Google
         }
     });
 
