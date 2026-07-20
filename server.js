@@ -206,16 +206,14 @@ async function sendOtpEmail(email, name, otpCode) {
     }
 
     const transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        service: 'gmail',
         auth: {
             user: process.env.EMAIL_USER.trim(),
             pass: process.env.EMAIL_PASS.replace(/\s+/g, '').trim()
         },
-        tls: {
-            rejectUnauthorized: false
-        }
+        connectionTimeout: 10000,
+        greetingTimeout: 5000,
+        socketTimeout: 15000
     });
 
     const mailOptions = {
@@ -324,9 +322,11 @@ app.post('/api/auth/register', async (req, res) => {
         console.log(`[Database SQL] User baru terdaftar (menunggu OTP): ${username} (${newUser.id}) | OTP: ${otpCode}`);
 
         // Dispatch OTP Email
-        sendOtpEmail(email.toLowerCase(), name, otpCode).catch(mailErr => {
+        try {
+            await sendOtpEmail(email.toLowerCase(), name, otpCode);
+        } catch (mailErr) {
             console.error('[Email OTP Error] Gagal mengirim OTP email:', mailErr.message || mailErr);
-        });
+        }
 
         const hasSmtp = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
         
@@ -428,9 +428,11 @@ app.post('/api/auth/resend-otp', async (req, res) => {
         await user.save();
 
         console.log(`[Email OTP] Resending OTP ${newOtpCode} to ${email}`);
-        sendOtpEmail(user.email, user.name, newOtpCode).catch(mailErr => {
+        try {
+            await sendOtpEmail(user.email, user.name, newOtpCode);
+        } catch (mailErr) {
             console.error('[Email OTP Error] Resend failed:', mailErr.message || mailErr);
-        });
+        }
 
         const hasSmtp = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
