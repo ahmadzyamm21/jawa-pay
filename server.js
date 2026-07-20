@@ -571,7 +571,7 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
                 const data = response.data.data;
                 if (data) {
                     purchaseResult = {
-                        status: data.status === 'Success' ? 'Sukses' : (data.status === 'Pending' ? 'Pending' : 'Gagal'),
+                        status: (data.status === 'Success' || data.status === 'Sukses') ? 'Sukses' : (data.status === 'Pending' ? 'Pending' : 'Gagal'),
                         sn: data.sn || '-',
                         trx_id: data.trx_id || 'TRX' + Date.now(),
                         message: data.message || 'Transaksi ditolak oleh operator.'
@@ -887,7 +887,7 @@ app.post('/api/payment/simulate-callback', async (req, res) => {
             });
             const data = response.data.data;
             purchaseResult = {
-                status: data.status === 'Success' ? 'Sukses' : 'Pending',
+                status: (data.status === 'Success' || data.status === 'Sukses') ? 'Sukses' : 'Pending',
                 sn: data.sn || '-',
                 trx_id: data.trx_id || 'TRX' + Date.now()
             };
