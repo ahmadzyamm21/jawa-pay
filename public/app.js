@@ -306,13 +306,17 @@ async function handleRegister() {
             DOM.registerPassword.value = '';
 
             if (DOM.otpEmailTargetText) {
-                DOM.otpEmailTargetText.innerHTML = `Kode 6-digit telah dikirimkan ke <strong style="color: #38bdf8;">${state.pendingOtpEmail}</strong>. Sila periksa inbox / spam email Anda.`;
+                if (result.debugOtp) {
+                    DOM.otpEmailTargetText.innerHTML = `[Mode Uji Coba]: Kode OTP Anda adalah <strong style="color: #38bdf8; font-size: 16px; letter-spacing: 2px;">${result.debugOtp}</strong>`;
+                } else {
+                    DOM.otpEmailTargetText.innerHTML = `Kode 6-digit telah dikirimkan ke <strong style="color: #38bdf8;">${state.pendingOtpEmail}</strong>. Sila periksa inbox / spam email Anda.`;
+                }
             }
             DOM.registerFormBox.style.display = 'none';
             DOM.loginFormBox.style.display = 'none';
             DOM.otpFormBox.style.display = 'block';
             if (DOM.otpCodeInput) {
-                DOM.otpCodeInput.value = '';
+                DOM.otpCodeInput.value = result.debugOtp || '';
                 DOM.otpCodeInput.focus();
             }
         } else {
@@ -385,6 +389,9 @@ async function handleResendOtp() {
 
         const result = await response.json();
         if (response.ok) {
+            if (result.debugOtp && DOM.otpCodeInput) {
+                DOM.otpCodeInput.value = result.debugOtp;
+            }
             alert(result.message || 'Kode OTP 6-digit baru telah dikirimkan ke email Anda.');
         } else {
             alert('Gagal Mengirim OTP: ' + (result.error || 'Terjadi kesalahan.'));

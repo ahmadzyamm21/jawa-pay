@@ -318,11 +318,16 @@ app.post('/api/auth/register', async (req, res) => {
             console.error('[Email OTP Error] Gagal mengirim OTP email:', mailErr.message || mailErr);
         });
 
+        const hasSmtp = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+        
         res.json({
             success: true,
             requireOtp: true,
             email: email.toLowerCase(),
-            message: 'Registrasi berhasil! Kode OTP 6-digit telah dikirim ke email Anda.'
+            debugOtp: hasSmtp ? null : otpCode,
+            message: hasSmtp 
+                ? 'Registrasi berhasil! Kode OTP 6-digit telah dikirim ke email Anda.' 
+                : `Registrasi berhasil! [Mode Uji Coba]: Kode OTP Anda adalah ${otpCode}`
         });
     } catch (err) {
         console.error('Register database error:', err);
@@ -417,7 +422,15 @@ app.post('/api/auth/resend-otp', async (req, res) => {
             console.error('[Email OTP Error] Resend failed:', mailErr.message || mailErr);
         });
 
-        res.json({ success: true, message: 'Kode OTP 6-digit baru telah dikirimkan ke email Anda.' });
+        const hasSmtp = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+
+        res.json({
+            success: true,
+            debugOtp: hasSmtp ? null : newOtpCode,
+            message: hasSmtp 
+                ? 'Kode OTP 6-digit baru telah dikirimkan ke email Anda.'
+                : `[Mode Uji Coba]: Kode OTP baru Anda adalah ${newOtpCode}`
+        });
     } catch (err) {
         console.error('Resend OTP Error:', err);
         res.status(500).json({ error: 'Gagal mengirim ulang Kode OTP.' });
