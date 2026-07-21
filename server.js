@@ -3,6 +3,7 @@ const cors = require('cors');
 const axios = require('axios');
 const crypto = require('crypto');
 const path = require('path');
+const dns = require('dns');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -202,25 +203,11 @@ async function sendOtpEmail(email, name, otpCode) {
 
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
         console.log(`[Email OTP Simulator] SMTP credentials missing in Render. OTP for ${email} is: ${otpCode}`);
-        return true;
+        return false;
     }
 
-    const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        family: 4, // Paksa IPv4 untuk mencegah error ENETUNREACH IPv6 di Render cloud
-        auth: {
-            user: process.env.EMAIL_USER.trim(),
-            pass: process.env.EMAIL_PASS.replace(/\s+/g, '').trim()
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 5000,
-        socketTimeout: 15000
-    });
-
     const mailOptions = {
-        from: `"Jawa Pay Security" <${process.env.EMAIL_USER}>`,
+        from: `"Jawa Pay Security" <${process.env.EMAIL_USER.trim()}>`,
         to: email,
         subject: `[${otpCode}] Kode OTP Verifikasi Akun Jawa Pay Anda`,
         html: `
@@ -243,13 +230,45 @@ async function sendOtpEmail(email, name, otpCode) {
         `
     };
 
+    const createTransporter = (port, secure) => nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: port,
+        secure: secure,
+        auth: {
+            user: process.env.EMAIL_USER.trim(),
+            pass: process.env.EMAIL_PASS.replace(/\s+/g, '').trim()
+        },
+        lookup: (hostname, options, callback) => {
+            dns.lookup(hostname, { family: 4 }, (err, address, family) => {
+                callback(err, address, family);
+            });
+        },
+        tls: {
+            rejectUnauthorized: false
+        },
+        connectionTimeout: 10000,
+        greetingTimeout: 5000,
+        socketTimeout: 15000
+    });
+
+    // Strategy 1: Try Port 587 STARTTLS with IPv4 lookup
     try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[Email OTP Success] OTP ${otpCode} BERHASIL terkirim ke Gmail ${email} (MessageID: ${info.messageId})`);
+        const transporter587 = createTransporter(587, false);
+        const info = await transporter587.sendMail(mailOptions);
+        console.log(`[Email OTP Success] OTP ${otpCode} BERHASIL terkirim via Port 587 IPv4 ke ${email} (MessageID: ${info.messageId})`);
         return true;
-    } catch (err) {
-        console.error(`[Email OTP Error] Gagal mengirim OTP ke Gmail ${email}:`, err.message || err);
-        throw err;
+    } catch (err587) {
+        console.warn(`[Email OTP Port 587 Warning] ${err587.message || err587}. Mencoba Port 465 SSL...`);
+        // Strategy 2: Try Port 465 Direct SSL with IPv4 lookup
+        try {
+            const transporter465 = createTransporter(465, true);
+            const info = await transporter465.sendMail(mailOptions);
+            console.log(`[Email OTP Success] OTP ${otpCode} BERHASIL terkirim via Port 465 IPv4 ke ${email} (MessageID: ${info.messageId})`);
+            return true;
+        } catch (err465) {
+            console.error(`[Email OTP Error] Gagal mengirim OTP ke Gmail ${email} di Port 587 & 465:`, err465.message || err465);
+            return false;
+        }
     }
 }
 
@@ -325,22 +344,21 @@ app.post('/api/auth/register', async (req, res) => {
         console.log(`[Database SQL] User baru terdaftar (menunggu OTP): ${username} (${newUser.id}) | OTP: ${otpCode}`);
 
         // Dispatch OTP Email
+        let mailSent = false;
         try {
-            await sendOtpEmail(email.toLowerCase(), name, otpCode);
+            mailSent = await sendOtpEmail(email.toLowerCase(), name, otpCode);
         } catch (mailErr) {
             console.error('[Email OTP Error] Gagal mengirim OTP email:', mailErr.message || mailErr);
         }
 
-        const hasSmtp = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-        
         res.json({
             success: true,
             requireOtp: true,
             email: email.toLowerCase(),
-            debugOtp: hasSmtp ? null : otpCode,
-            message: hasSmtp 
+            debugOtp: mailSent ? null : otpCode,
+            message: mailSent 
                 ? 'Registrasi berhasil! Kode OTP 6-digit telah dikirim ke email Anda.' 
-                : `Registrasi berhasil! [Mode Uji Coba]: Kode OTP Anda adalah ${otpCode}`
+                : `Registrasi berhasil! [Mode OTP Fallback Cloud]: Kode OTP Anda adalah ${otpCode}`
         });
     } catch (err) {
         console.error('Register database error:', err);
@@ -431,20 +449,19 @@ app.post('/api/auth/resend-otp', async (req, res) => {
         await user.save();
 
         console.log(`[Email OTP] Resending OTP ${newOtpCode} to ${email}`);
+        let mailSent = false;
         try {
-            await sendOtpEmail(user.email, user.name, newOtpCode);
+            mailSent = await sendOtpEmail(user.email, user.name, newOtpCode);
         } catch (mailErr) {
             console.error('[Email OTP Error] Resend failed:', mailErr.message || mailErr);
         }
 
-        const hasSmtp = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-
         res.json({
             success: true,
-            debugOtp: hasSmtp ? null : newOtpCode,
-            message: hasSmtp 
+            debugOtp: mailSent ? null : newOtpCode,
+            message: mailSent 
                 ? 'Kode OTP 6-digit baru telah dikirimkan ke email Anda.'
-                : `[Mode Uji Coba]: Kode OTP baru Anda adalah ${newOtpCode}`
+                : `[Mode OTP Fallback Cloud]: Kode OTP baru Anda adalah ${newOtpCode}`
         });
     } catch (err) {
         console.error('Resend OTP Error:', err);
