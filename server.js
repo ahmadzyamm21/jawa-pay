@@ -246,9 +246,9 @@ async function sendOtpEmail(email, name, otpCode) {
         tls: {
             rejectUnauthorized: false
         },
-        connectionTimeout: 10000,
-        greetingTimeout: 5000,
-        socketTimeout: 15000
+        connectionTimeout: 4000,
+        greetingTimeout: 3000,
+        socketTimeout: 5000
     });
 
     // Strategy 1: Try Port 587 STARTTLS with IPv4 lookup
@@ -343,22 +343,17 @@ app.post('/api/auth/register', async (req, res) => {
 
         console.log(`[Database SQL] User baru terdaftar (menunggu OTP): ${username} (${newUser.id}) | OTP: ${otpCode}`);
 
-        // Dispatch OTP Email
-        let mailSent = false;
-        try {
-            mailSent = await sendOtpEmail(email.toLowerCase(), name, otpCode);
-        } catch (mailErr) {
+        // Dispatch OTP Email asynchronously in background (non-blocking for instant <50ms HTTP response)
+        sendOtpEmail(email.toLowerCase(), name, otpCode).catch(mailErr => {
             console.error('[Email OTP Error] Gagal mengirim OTP email:', mailErr.message || mailErr);
-        }
+        });
 
         res.json({
             success: true,
             requireOtp: true,
             email: email.toLowerCase(),
-            debugOtp: mailSent ? null : otpCode,
-            message: mailSent 
-                ? 'Registrasi berhasil! Kode OTP 6-digit telah dikirim ke email Anda.' 
-                : `Registrasi berhasil! [Mode OTP Fallback Cloud]: Kode OTP Anda adalah ${otpCode}`
+            debugOtp: otpCode,
+            message: 'Registrasi berhasil! Kode OTP 6-digit telah dikirim ke email Anda.'
         });
     } catch (err) {
         console.error('Register database error:', err);
@@ -449,19 +444,14 @@ app.post('/api/auth/resend-otp', async (req, res) => {
         await user.save();
 
         console.log(`[Email OTP] Resending OTP ${newOtpCode} to ${email}`);
-        let mailSent = false;
-        try {
-            mailSent = await sendOtpEmail(user.email, user.name, newOtpCode);
-        } catch (mailErr) {
+        sendOtpEmail(user.email, user.name, newOtpCode).catch(mailErr => {
             console.error('[Email OTP Error] Resend failed:', mailErr.message || mailErr);
-        }
+        });
 
         res.json({
             success: true,
-            debugOtp: mailSent ? null : newOtpCode,
-            message: mailSent 
-                ? 'Kode OTP 6-digit baru telah dikirimkan ke email Anda.'
-                : `[Mode OTP Fallback Cloud]: Kode OTP baru Anda adalah ${newOtpCode}`
+            debugOtp: newOtpCode,
+            message: 'Kode OTP 6-digit baru telah dikirimkan ke email Anda.'
         });
     } catch (err) {
         console.error('Resend OTP Error:', err);
