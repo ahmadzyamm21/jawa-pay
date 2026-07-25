@@ -596,11 +596,32 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
         });
         if (!user) return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
 
+        let displayBalance = user.balance;
+        if (user.role === 'admin' && DIGIFLAZZ_USERNAME && DIGIFLAZZ_API_KEY) {
+            try {
+                const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + 'depo');
+                const response = await axios.post(`${DIGIFLAZZ_BASE_URL}/cek-saldo`, {
+                    cmd: 'deposit',
+                    username: DIGIFLAZZ_USERNAME,
+                    sign: sign
+                }, { timeout: 3500 });
+                if (response.data && response.data.data && typeof response.data.data.deposit === 'number') {
+                    displayBalance = response.data.data.deposit;
+                    if (user.balance !== displayBalance) {
+                        user.balance = displayBalance;
+                        await user.save();
+                    }
+                }
+            } catch (err) {
+                console.error('[Admin Profile Balance Sync] Failed to fetch Digiflazz balance:', err.message);
+            }
+        }
+
         res.json({
             id: user.id,
             name: user.name,
             username: user.username,
-            balance: user.balance,
+            balance: displayBalance,
             markupFlat: user.markupFlat,
             role: user.role,
             transactions: user.transactions
