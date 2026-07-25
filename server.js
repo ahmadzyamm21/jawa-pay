@@ -963,9 +963,9 @@ app.post('/api/deposits/request', authenticateToken, async (req, res) => {
             success: true,
             deposit,
             bankAccounts: {
-                BCA: { number: '1234567890', owner: 'Ahmad Syamsuri' },
-                MANDIRI: { number: '9876543210', owner: 'Ahmad Syamsuri' },
-                BRI: { number: '1122334455', owner: 'Ahmad Syamsuri' }
+                BCA: { number: process.env.BANK_BCA_NUMBER || '1234567890', owner: process.env.BANK_BCA_OWNER || 'Ahmad Syamsuri' },
+                MANDIRI: { number: process.env.BANK_MANDIRI_NUMBER || '9876543210', owner: process.env.BANK_MANDIRI_OWNER || 'Ahmad Syamsuri' },
+                BRI: { number: process.env.BANK_BRI_NUMBER || '1122334455', owner: process.env.BANK_BRI_OWNER || 'Ahmad Syamsuri' }
             }
         });
     } catch (err) {
@@ -985,9 +985,9 @@ app.get('/api/deposits/my-requests', authenticateToken, async (req, res) => {
             success: true,
             deposits,
             bankAccounts: {
-                BCA: { number: '1234567890', owner: 'Ahmad Syamsuri' },
-                MANDIRI: { number: '9876543210', owner: 'Ahmad Syamsuri' },
-                BRI: { number: '1122334455', owner: 'Ahmad Syamsuri' }
+                BCA: { number: process.env.BANK_BCA_NUMBER || '1234567890', owner: process.env.BANK_BCA_OWNER || 'Ahmad Syamsuri' },
+                MANDIRI: { number: process.env.BANK_MANDIRI_NUMBER || '9876543210', owner: process.env.BANK_MANDIRI_OWNER || 'Ahmad Syamsuri' },
+                BRI: { number: process.env.BANK_BRI_NUMBER || '1122334455', owner: process.env.BANK_BRI_OWNER || 'Ahmad Syamsuri' }
             }
         });
     } catch (err) {
