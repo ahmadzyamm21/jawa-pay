@@ -31,6 +31,10 @@ module.exports = (sequelize) => {
             type: DataTypes.STRING(20),
             allowNull: false,
             defaultValue: 'Pending' // Pending, Sukses, Batal
+        },
+        qrUrl: {
+            type: DataTypes.TEXT,
+            allowNull: true
         }
     }, {
         tableName: 'deposits',

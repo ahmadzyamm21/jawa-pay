@@ -632,6 +632,35 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
     }
 });
 
+// Change user password (Protected)
+app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) {
+        return res.status(400).json({ error: 'Password lama dan password baru wajib diisi.' });
+    }
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'Password baru minimal harus 6 karakter.' });
+    }
+
+    try {
+        const user = await User.findByPk(req.user.id);
+        if (!user) return res.status(404).json({ error: 'Pengguna tidak ditemukan.' });
+
+        if (user.password !== hashPassword(oldPassword)) {
+            return res.status(400).json({ error: 'Password lama yang Anda masukkan salah.' });
+        }
+
+        user.password = hashPassword(newPassword);
+        await user.save();
+
+        console.log(`[Password Change] Agen ${user.username} berhasil mengubah password keamanan.`);
+        res.json({ success: true, message: 'Password keamanan berhasil diperbarui.' });
+    } catch (err) {
+        console.error('Change password error:', err);
+        res.status(500).json({ error: 'Gagal mengubah password.' });
+    }
+});
+
 // ==========================================
 //             ADMIN API ENDPOINTS
 // ==========================================
@@ -888,7 +917,8 @@ app.get('/api/config/announcement', async (req, res) => {
         const announcement = await Setting.findByPk('announcement');
         res.json({
             success: true,
-            announcement: announcement ? announcement.value : '📢 Info Layanan: Sistem pembayaran QRIS & Virtual Account Mandiri/BCA lancar jaya.'
+            announcement: announcement ? announcement.value : '📢 Info Layanan: Sistem pembayaran QRIS & Virtual Account Mandiri/BCA lancar jaya.',
+            contactWhatsapp: process.env.CONTACT_WHATSAPP || '6281234567890'
         });
     } catch (err) {
         console.error('Get announcement error:', err);
@@ -1039,6 +1069,190 @@ app.post('/api/deposits/:id/cancel', authenticateToken, async (req, res) => {
     } catch (err) {
         console.error('Cancel deposit error:', err);
         res.status(500).json({ error: 'Gagal membatalkan tiket deposit.' });
+    }
+});
+
+// Tripay Configuration
+const TRIPAY_API_KEY = process.env.TRIPAY_API_KEY;
+const TRIPAY_PRIVATE_KEY = process.env.TRIPAY_PRIVATE_KEY;
+const TRIPAY_MERCHANT_CODE = process.env.TRIPAY_MERCHANT_CODE;
+const TRIPAY_API_URL = process.env.TRIPAY_API_URL || 'https://tripay.co.id/api-sandbox/transaction/create';
+
+const isTripayMock = () => !TRIPAY_API_KEY || !TRIPAY_PRIVATE_KEY || !TRIPAY_MERCHANT_CODE;
+
+// Request dynamic QRIS Deposit Ticket (Protected Agent)
+app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
+    const { amount } = req.body;
+    const userId = req.user.id;
+
+    if (!amount || isNaN(amount) || amount < 10000) {
+        return res.status(400).json({ error: 'Minimal pengajuan deposit adalah Rp 10.000.' });
+    }
+
+    try {
+        const user = await User.findByPk(userId);
+        if (!user) return res.status(404).json({ error: 'User tidak ditemukan.' });
+
+        // Check if there's already a pending deposit
+        const existingPending = await Deposit.findOne({
+            where: { userId, status: 'Pending', bankName: 'QRIS' }
+        });
+        if (existingPending) {
+            return res.status(400).json({
+                error: 'Anda memiliki tiket deposit QRIS pending yang belum diselesaikan.',
+                deposit: existingPending
+            });
+        }
+
+        const depositId = 'DEPQRIS' + Date.now();
+        const totalAmount = parseInt(amount);
+
+        if (isTripayMock()) {
+            // Mock Mode
+            const mockQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=JawaPayMockQRIS_${depositId}_${totalAmount}`;
+            const deposit = await Deposit.create({
+                id: depositId,
+                userId: userId,
+                bankName: 'QRIS',
+                amount: totalAmount,
+                uniqueCode: 0,
+                totalAmount: totalAmount,
+                status: 'Pending',
+                qrUrl: mockQrUrl
+            });
+
+            console.log(`[QRIS Request - Mock] Agen ${user.username} mengajukan deposit QRIS ${totalAmount} (ID: ${depositId})`);
+            return res.json({
+                success: true,
+                deposit,
+                isMock: true
+            });
+        }
+
+        // Live Tripay QRIS Request
+        const signature = crypto.createHmac('sha256', TRIPAY_PRIVATE_KEY)
+            .update(TRIPAY_MERCHANT_CODE + depositId + totalAmount)
+            .digest('hex');
+
+        const tripayPayload = {
+            method: 'QRIS',
+            merchant_ref: depositId,
+            amount: totalAmount,
+            customer_name: user.name,
+            customer_email: user.email || `${user.username}@jawapay.my.id`,
+            signature: signature,
+            order_items: [
+                {
+                    name: 'Top Up Saldo Jawa Pay',
+                    price: totalAmount,
+                    quantity: 1
+                }
+            ],
+            expired_time: Math.floor(Date.now() / 1000) + 1800 // 30 minutes
+        };
+
+        const tripayHeaders = {
+            'Authorization': `Bearer ${TRIPAY_API_KEY}`
+        };
+
+        const tripayRes = await axios.post(TRIPAY_API_URL, tripayPayload, { headers: tripayHeaders });
+        
+        if (tripayRes.data && tripayRes.data.success) {
+            const qrUrl = tripayRes.data.data.qr_url;
+            const deposit = await Deposit.create({
+                id: depositId,
+                userId: userId,
+                bankName: 'QRIS',
+                amount: totalAmount,
+                uniqueCode: 0,
+                totalAmount: totalAmount,
+                status: 'Pending',
+                qrUrl: qrUrl
+            });
+
+            console.log(`[QRIS Request - Live] Agen ${user.username} mengajukan deposit QRIS ${totalAmount} (ID: ${depositId})`);
+            return res.json({
+                success: true,
+                deposit,
+                isMock: false
+            });
+        } else {
+            console.error('Tripay transaction creation failed:', tripayRes.data);
+            return res.status(500).json({ error: 'Gagal membuat transaksi QRIS di Tripay.' });
+        }
+    } catch (err) {
+        console.error('Request QRIS deposit error:', err.message);
+        res.status(500).json({ error: 'Gagal memproses tiket deposit QRIS.' });
+    }
+});
+
+// Tripay Webhook Callback (Live)
+app.post('/api/payment/callback', async (req, res) => {
+    try {
+        const callbackSignature = req.headers['x-callback-signature'];
+        const privateKey = TRIPAY_PRIVATE_KEY;
+
+        // Verify Tripay signature
+        const calculatedSignature = crypto.createHmac('sha256', privateKey)
+            .update(JSON.stringify(req.body))
+            .digest('hex');
+
+        if (callbackSignature !== calculatedSignature) {
+            console.error('[Tripay Callback] Signature mismatch!');
+            return res.status(400).json({ error: 'Invalid signature.' });
+        }
+
+        const { merchant_ref, status } = req.body;
+
+        if (status === 'PAID') {
+            const deposit = await Deposit.findOne({ where: { id: merchant_ref, status: 'Pending' } });
+            if (deposit) {
+                const user = await User.findByPk(deposit.userId);
+                if (user) {
+                    await sequelize.transaction(async (t) => {
+                        deposit.status = 'Sukses';
+                        await deposit.save({ transaction: t });
+
+                        user.balance += deposit.totalAmount;
+                        await user.save({ transaction: t });
+                    });
+                    console.log(`[Tripay Callback] Deposit ${merchant_ref} PAID. Saldo ${user.username} bertambah Rp ${deposit.totalAmount}`);
+                }
+            }
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Tripay Callback error:', err);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
+// Mock Webhook Callback (For local sandbox/mock testing)
+app.post('/api/payment/mock-callback', async (req, res) => {
+    const { depositId } = req.body;
+    if (!depositId) return res.status(400).json({ error: 'Deposit ID required.' });
+
+    try {
+        const deposit = await Deposit.findOne({ where: { id: depositId, status: 'Pending' } });
+        if (!deposit) return res.status(404).json({ error: 'Tiket deposit tidak ditemukan atau sudah diproses.' });
+
+        const user = await User.findByPk(deposit.userId);
+        if (user) {
+            await sequelize.transaction(async (t) => {
+                deposit.status = 'Sukses';
+                await deposit.save({ transaction: t });
+
+                user.balance += deposit.totalAmount;
+                await user.save({ transaction: t });
+            });
+            console.log(`[Mock Callback] Deposit ${depositId} simulated PAID. Saldo ${user.username} bertambah Rp ${deposit.totalAmount}`);
+            return res.json({ success: true, message: 'Simulasi pembayaran QRIS berhasil!' });
+        }
+        res.status(404).json({ error: 'User tidak ditemukan.' });
+    } catch (err) {
+        console.error('Mock Callback error:', err);
+        res.status(500).json({ error: 'Gagal mensimulasikan callback.' });
     }
 });
 
@@ -2112,6 +2326,7 @@ async function runSQLiteMigrations() {
         await addColumnIfMissing('users', 'role', "VARCHAR(20) DEFAULT 'agent'");
         await addColumnIfMissing('users', 'uplineId', "VARCHAR(255) DEFAULT NULL");
         await addColumnIfMissing('users', 'referralMarkup', "INTEGER DEFAULT 0");
+        await addColumnIfMissing('deposits', 'qrUrl', "TEXT DEFAULT NULL");
     } catch (migErr) {
         console.warn('[Migration Warning] Gagal mengecek/menambahkan kolom:', migErr.message);
     }

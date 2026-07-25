@@ -1137,11 +1137,12 @@
             
             <div id="topup-form-content">
                 <div class="input-group" style="margin-bottom: 14px;">
-                    <label class="input-label">Pilih Bank Tujuan Transfer</label>
+                    <label class="input-label">Pilih Metode Pembayaran</label>
                     <select id="topup-bank-select" class="input-field" style="cursor: pointer; padding: 10px 12px; font-size: 13px; appearance: none; background: rgba(0,0,0,0.3);">
-                        <option value="BCA">Bank BCA (1234567890 a.n Ahmad Syamsuri)</option>
-                        <option value="MANDIRI">Bank Mandiri (9876543210 a.n Ahmad Syamsuri)</option>
-                        <option value="BRI">Bank BRI (1122334455 a.n Ahmad Syamsuri)</option>
+                        <option value="QRIS">⚡ QRIS (Otomatis - Scan & Saldo Masuk Instan)</option>
+                        <option value="BCA">Bank BCA (Transfer Manual)</option>
+                        <option value="MANDIRI">Bank Mandiri (Transfer Manual)</option>
+                        <option value="BRI">Bank BRI (Transfer Manual)</option>
                     </select>
                 </div>
 
@@ -1205,18 +1206,19 @@
         </div>
     </div>
 
-    <!-- Modal 2: Pembayaran Midtrans Status -->
+    <!-- Modal 2: Pembayaran QRIS Otomatis -->
     <div class="modal-overlay" id="qris-modal">
-        <div class="modal-container" style="max-width: 360px; text-align: center;">
+        <div class="modal-container" style="max-width: 380px; text-align: center;">
             <button class="modal-close"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
-            <h3 class="modal-title">Proses Pembayaran</h3>
+            <h3 class="modal-title">Pembayaran QRIS Otomatis</h3>
             
-            <div style="padding: 20px 0;">
-                <i data-lucide="shield-check" class="pulse-loader" style="width: 64px; height: 64px; color: #38bdf8; margin: 0 auto 16px; display: block;"></i>
-                <p style="font-size: 14px; line-height: 1.6; color: var(--text-primary); font-weight: 600;">Jendela Midtrans Snap Terbuka</p>
-                <p style="font-size: 12px; line-height: 1.5; color: var(--text-secondary); margin-top: 8px;">
-                    Silakan pilih metode dan selesaikan pembayaran Anda pada jendela aman Midtrans.
+            <div style="padding: 10px 0;">
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                    Scan QRIS di bawah menggunakan GoPay, OVO, Dana, LinkAja, ShopeePay, atau m-Banking Anda.
                 </p>
+                <div style="background: white; padding: 16px; border-radius: 16px; width: 220px; height: 220px; margin: 0 auto; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                    <img id="qris-barcode-img" src="" alt="Barcode QRIS" style="width: 100%; height: 100%; object-fit: contain;">
+                </div>
             </div>
 
             <div class="checkout-divider" style="margin: 10px 0;"></div>
@@ -1226,9 +1228,9 @@
                 <p style="font-size: 22px; font-weight: 800; color: #38bdf8;" id="qris-amount">Rp 0</p>
             </div>
 
-            <button class="btn-topup" id="btn-simulate-pay" style="margin-top: 12px; background: var(--success-gradient); width: 100%; justify-content: center; height: 44px; border-radius: 12px; font-size: 13px; font-weight: 700;">
+            <button class="btn-topup" id="btn-simulate-pay" style="margin-top: 12px; background: var(--success-gradient); width: 100%; justify-content: center; height: 44px; border-radius: 12px; font-size: 13px; font-weight: 700; display: none;">
                 <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i>
-                Simulasikan Pembayaran Sukses
+                Simulasikan Pembayaran Sukses (Uji Coba)
             </button>
         </div>
     </div>
@@ -1396,6 +1398,23 @@
 
                 <div class="checkout-divider" style="margin: 4px 0;"></div>
 
+                <!-- Change Password Form -->
+                <div class="input-group" style="margin-bottom: 0;">
+                    <label class="input-label" style="color: #fbbf24; display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="lock" style="width: 14px; height: 14px;"></i> Ganti Password Keamanan
+                    </label>
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+                        <input type="password" id="settings-old-password" class="input-field" placeholder="Password lama..." style="font-size: 13px; height: 38px;">
+                        <input type="password" id="settings-new-password" class="input-field" placeholder="Password baru..." style="font-size: 13px; height: 38px;">
+                        <input type="password" id="settings-confirm-password" class="input-field" placeholder="Konfirmasi password baru..." style="font-size: 13px; height: 38px;">
+                        <button type="button" class="btn-topup" id="btn-settings-change-password" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b; width: 100%; justify-content: center; height: 38px; font-size: 12px; font-weight: 700; border-radius: 12px;">
+                            <i data-lucide="key" style="width: 14px; height: 14px;"></i> Update Password
+                        </button>
+                    </div>
+                </div>
+
+                <div class="checkout-divider" style="margin: 4px 0;"></div>
+
                 <button class="btn-action" id="btn-save-settings" style="margin-top: 8px; background: var(--primary-gradient); height: 46px; font-weight: 700; border-radius: 12px; font-size: 13px;">
                     <i data-lucide="save" style="width: 18px; height: 18px;"></i>
                     Simpan Setelan
@@ -1482,5 +1501,10 @@
             });
         }
     </script>
+
+    <!-- WhatsApp Floating CS Widget -->
+    <a href="https://wa.me/6281234567890" target="_blank" class="whatsapp-widget" id="whatsapp-cs-link" title="Hubungi CS WhatsApp">
+        <i data-lucide="message-circle"></i>
+    </a>
 </body>
 </html>

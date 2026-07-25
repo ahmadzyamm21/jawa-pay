@@ -853,8 +853,47 @@ function setupListeners() {
             return;
         }
 
+        const token = getToken();
+        if (bankName === 'QRIS') {
+            try {
+                const res = await fetch(apiUrl('/api/deposits/request-qris'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ amount })
+                });
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                    closeAllModals();
+                    document.getElementById('qris-barcode-img').src = data.deposit.qrUrl;
+                    document.getElementById('qris-amount').textContent = formatRupiah(data.deposit.totalAmount);
+                    
+                    const btnSim = document.getElementById('btn-simulate-pay');
+                    if (btnSim) {
+                        if (data.isMock) {
+                            btnSim.style.display = 'block';
+                            btnSim.setAttribute('data-id', data.deposit.id);
+                        } else {
+                            btnSim.style.display = 'none';
+                        }
+                    }
+                    
+                    document.getElementById('qris-modal').classList.add('show');
+                    await loadActiveDeposit(); // Refresh widget
+                } else {
+                    alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+                }
+            } catch (err) {
+                console.error('Request QRIS error:', err);
+                alert('Gagal menghubungi server.');
+            }
+            return;
+        }
+
         try {
-            const token = getToken();
             const res = await fetch(apiUrl('/api/deposits/request'), {
                 method: 'POST',
                 headers: {
@@ -918,7 +957,8 @@ function setupListeners() {
     });
 
     DOM.btnSimulatePay.addEventListener('click', () => {
-        simulateWebhookCallback();
+        const depositId = DOM.btnSimulatePay.getAttribute('data-id');
+        simulateQrisDepositSuccess(depositId);
     });
 
     DOM.btnCloseReceipt.addEventListener('click', () => {
@@ -1084,6 +1124,11 @@ function setupListeners() {
 
     if (DOM.btnSaveSettings) {
         DOM.btnSaveSettings.addEventListener('click', handleSaveSettings);
+    }
+
+    const btnChangePassword = document.getElementById('btn-settings-change-password');
+    if (btnChangePassword) {
+        btnChangePassword.addEventListener('click', handleSettingsChangePassword);
     }
 
     if (DOM.settingsThemeDark) {
@@ -2625,6 +2670,92 @@ async function handleAdminSaveAnnouncement() {
     }
 }
 
+async function handleSettingsChangePassword() {
+    const oldPassword = document.getElementById('settings-old-password').value;
+    const newPassword = document.getElementById('settings-new-password').value;
+    const confirmPassword = document.getElementById('settings-confirm-password').value;
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+        alert('Semua kolom password wajib diisi.');
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        alert('Konfirmasi password baru tidak cocok.');
+        return;
+    }
+    if (newPassword.length < 6) {
+        alert('Password baru minimal harus 6 karakter.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-settings-change-password');
+    btn.disabled = true;
+    btn.textContent = 'Memproses...';
+
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl('/api/auth/change-password'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ oldPassword, newPassword })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            alert('Password keamanan Anda berhasil diperbarui!');
+            document.getElementById('settings-old-password').value = '';
+            document.getElementById('settings-new-password').value = '';
+            document.getElementById('settings-confirm-password').value = '';
+        } else {
+            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+        }
+    } catch (err) {
+        console.error('Error changing password:', err);
+        alert('Gagal menghubungi server.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="key" style="width: 14px; height: 14px;"></i> Update Password';
+        if (window.lucide) window.lucide.createIcons();
+    }
+}
+
+async function simulateQrisDepositSuccess(depositId) {
+    if (!depositId) return;
+    
+    const btn = document.getElementById('btn-simulate-pay');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Memproses Callback...';
+
+    try {
+        const res = await fetch(apiUrl('/api/payment/mock-callback'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ depositId })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            alert('Simulasi Pembayaran QRIS Berhasil! Saldo Anda telah ditambahkan.');
+            closeAllModals();
+            await syncUserProfile();
+            await loadActiveDeposit();
+        } else {
+            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+        }
+    } catch (err) {
+        console.error('Error simulating QRIS success:', err);
+        alert('Gagal mensimulasikan pembayaran.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="check-circle" style="width: 16px; height: 16px;"></i> Simulasikan Pembayaran Sukses (Uji Coba)';
+        if (window.lucide) window.lucide.createIcons();
+    }
+}
+
 async function fetchAnnouncement() {
     const announcementText = document.getElementById('announcement-text');
     if (!announcementText) return;
@@ -2638,6 +2769,10 @@ async function fetchAnnouncement() {
                 const adminInput = document.getElementById('admin-announcement-input');
                 if (adminInput) {
                     adminInput.value = data.announcement;
+                }
+                const waLink = document.getElementById('whatsapp-cs-link');
+                if (waLink && data.contactWhatsapp) {
+                    waLink.href = `https://wa.me/${data.contactWhatsapp.replace(/\+/g, '').replace(/\s+/g, '')}`;
                 }
             }
         }
@@ -2782,9 +2917,27 @@ async function cancelDeposit(id) {
 }
 
 function checkAndShowActiveDepositModal() {
-    if (state.activeDeposit && state.bankAccounts) {
-        showTopupInstructions(state.activeDeposit, state.bankAccounts);
-        DOM.topupModal.classList.add('show');
+    if (state.activeDeposit) {
+        if (state.activeDeposit.bankName === 'QRIS') {
+            document.getElementById('qris-barcode-img').src = state.activeDeposit.qrUrl;
+            document.getElementById('qris-amount').textContent = formatRupiah(state.activeDeposit.totalAmount);
+            
+            const btnSim = document.getElementById('btn-simulate-pay');
+            if (btnSim) {
+                if (state.activeDeposit.id.startsWith('DEPQRIS')) {
+                    btnSim.style.display = 'block';
+                    btnSim.setAttribute('data-id', state.activeDeposit.id);
+                } else {
+                    btnSim.style.display = 'none';
+                }
+            }
+            
+            const qMod = document.getElementById('qris-modal');
+            if (qMod) qMod.classList.add('show');
+        } else if (state.bankAccounts) {
+            showTopupInstructions(state.activeDeposit, state.bankAccounts);
+            DOM.topupModal.classList.add('show');
+        }
     }
 }
 
