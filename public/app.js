@@ -932,9 +932,11 @@ function setupListeners() {
     // Navigation Tabs & Analitik & Admin
     const navTransaction = document.getElementById('nav-transaction');
     const navAnalytics = document.getElementById('nav-analytics');
+    const navDownlines = document.getElementById('nav-downlines');
     const navAdmin = document.getElementById('nav-admin');
     const viewTransaction = document.getElementById('view-transaction');
     const viewAnalytics = document.getElementById('view-analytics');
+    const viewDownlines = document.getElementById('view-downlines');
     const viewAdmin = document.getElementById('view-admin');
     const btnExportCSV = document.getElementById('btn-export-csv');
  
@@ -942,35 +944,96 @@ function setupListeners() {
         navTransaction.addEventListener('click', () => {
             navTransaction.classList.add('active');
             navAnalytics.classList.remove('active');
+            if (navDownlines) navDownlines.classList.remove('active');
             if (navAdmin) navAdmin.classList.remove('active');
             viewTransaction.style.display = 'block';
             viewAnalytics.style.display = 'none';
+            if (viewDownlines) viewDownlines.style.display = 'none';
             if (viewAdmin) viewAdmin.style.display = 'none';
         });
  
         navAnalytics.addEventListener('click', () => {
             navAnalytics.classList.add('active');
             navTransaction.classList.remove('active');
+            if (navDownlines) navDownlines.classList.remove('active');
             if (navAdmin) navAdmin.classList.remove('active');
             viewTransaction.style.display = 'none';
             viewAnalytics.style.display = 'flex';
+            if (viewDownlines) viewDownlines.style.display = 'none';
             if (viewAdmin) viewAdmin.style.display = 'none';
             
             updateAnalyticsDashboard();
         });
+
+        if (navDownlines) {
+            navDownlines.addEventListener('click', () => {
+                navDownlines.classList.add('active');
+                navTransaction.classList.remove('active');
+                navAnalytics.classList.remove('active');
+                if (navAdmin) navAdmin.classList.remove('active');
+                viewTransaction.style.display = 'none';
+                viewAnalytics.style.display = 'none';
+                if (viewDownlines) viewDownlines.style.display = 'flex';
+                if (viewAdmin) viewAdmin.style.display = 'none';
+                
+                loadDownlinesDashboard();
+            });
+        }
 
         if (navAdmin) {
             navAdmin.addEventListener('click', () => {
                 navAdmin.classList.add('active');
                 navTransaction.classList.remove('active');
                 navAnalytics.classList.remove('active');
+                if (navDownlines) navDownlines.classList.remove('active');
                 viewTransaction.style.display = 'none';
                 viewAnalytics.style.display = 'none';
+                if (viewDownlines) viewDownlines.style.display = 'none';
                 if (viewAdmin) viewAdmin.style.display = 'flex';
                 
                 loadAdminDashboard();
             });
         }
+    }
+
+    // Downline Registration Form Submit
+    const downlineForm = document.getElementById('downline-register-form');
+    if (downlineForm) {
+        downlineForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('downline-name').value;
+            const username = document.getElementById('downline-username').value;
+            const email = document.getElementById('downline-email').value;
+            const password = document.getElementById('downline-password').value;
+            const referralMarkup = document.getElementById('downline-markup').value;
+            
+            const token = getToken();
+            if (!token) return;
+            
+            try {
+                const res = await fetch(apiUrl('/api/downlines/register'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name, username, email, password, referralMarkup })
+                });
+                
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    alert('Downline berhasil didaftarkan!');
+                    downlineForm.reset();
+                    loadDownlinesDashboard();
+                } else {
+                    alert('Gagal mendaftarkan downline: ' + (data.error || 'Terjadi kesalahan'));
+                }
+            } catch (err) {
+                console.error('Error registering downline:', err);
+                alert('Terjadi kesalahan sistem saat mendaftarkan downline.');
+            }
+        });
     }
  
     if (btnExportCSV) {
@@ -2875,3 +2938,87 @@ async function handleAdminRejectDeposit(id) {
 // Expose admin actions to global window scope for inline onclick templates
 window.handleAdminApproveDeposit = handleAdminApproveDeposit;
 window.handleAdminRejectDeposit = handleAdminRejectDeposit;
+
+async function loadDownlinesDashboard() {
+    const tableBody = document.getElementById('downline-list-table-body');
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = `
+        <tr>
+            <td colspan="8" style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                Memuat data downline...
+            </td>
+        </tr>
+    `;
+    
+    try {
+        const token = getToken();
+        if (!token) return;
+        
+        const res = await fetch(apiUrl('/api/downlines/list'), {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        const data = await res.json();
+        if (res.ok && data.success) {
+            tableBody.innerHTML = '';
+            
+            if (data.downlines.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                            Belum ada downline terdaftar. Silakan daftarkan agen baru menggunakan form di atas!
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            data.downlines.forEach(dl => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--card-border)';
+                tr.style.color = 'var(--text-secondary)';
+                
+                const joinDate = new Date(dl.createdAt).toLocaleDateString('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+                
+                tr.innerHTML = `
+                    <td style="padding: 12px 6px;">
+                        <div style="font-size: 11px; color: var(--text-muted);">${dl.id}</div>
+                        <div style="font-weight: 500;">${joinDate}</div>
+                    </td>
+                    <td style="padding: 12px 6px; font-weight: 600; color: var(--text-primary);">${dl.name}</td>
+                    <td style="padding: 12px 6px;">@${dl.username}</td>
+                    <td style="padding: 12px 6px; font-size: 12px;">${dl.email}</td>
+                    <td style="padding: 12px 6px; text-align: right; font-weight: 700; color: var(--success);">${formatRupiah(dl.balance)}</td>
+                    <td style="padding: 12px 6px; text-align: center; font-weight: 600;">+Rp ${dl.referralMarkup}</td>
+                    <td style="padding: 12px 6px; text-align: center; color: var(--text-primary); font-weight: 600;">${dl.transactionCount}</td>
+                    <td style="padding: 12px 6px; text-align: right; font-weight: 700; color: var(--primary);">${formatRupiah(dl.totalCommission)}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        } else {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 20px; color: var(--danger);">
+                        Gagal memuat downline: ${data.error || 'Terjadi kesalahan'}
+                    </td>
+                </tr>
+            `;
+        }
+    } catch (err) {
+        console.error('loadDownlinesDashboard error:', err);
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 20px; color: var(--danger);">
+                    Kesalahan koneksi ke server.
+                </td>
+            </tr>
+        `;
+    }
+}

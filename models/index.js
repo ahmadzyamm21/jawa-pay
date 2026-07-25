@@ -52,4 +52,7 @@ db.Transaction.belongsTo(db.User, { foreignKey: 'userId', as: 'user' });
 db.User.hasMany(db.Deposit, { foreignKey: 'userId', as: 'deposits', onDelete: 'CASCADE' });
 db.Deposit.belongsTo(db.User, { foreignKey: 'userId', as: 'user' });
 
+db.User.hasMany(db.User, { foreignKey: 'uplineId', as: 'downlines', onDelete: 'SET NULL' });
+db.User.belongsTo(db.User, { foreignKey: 'uplineId', as: 'upline' });
+
 module.exports = db;

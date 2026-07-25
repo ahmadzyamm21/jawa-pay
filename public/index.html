@@ -415,7 +415,7 @@
         </header>
 
         <!-- Navigation Menu -->
-        <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+        <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
             <button class="tab-btn active" id="nav-transaction" style="border-radius: 12px; padding: 12px 20px;">
                 <i data-lucide="shopping-bag" style="width: 16px; height: 16px;"></i>
                 Transaksi Baru
@@ -423,6 +423,10 @@
             <button class="tab-btn" id="nav-analytics" style="border-radius: 12px; padding: 12px 20px;">
                 <i data-lucide="bar-chart-2" style="width: 16px; height: 16px;"></i>
                 Dashboard Analitik
+            </button>
+            <button class="tab-btn" id="nav-downlines" style="border-radius: 12px; padding: 12px 20px;">
+                <i data-lucide="users" style="width: 16px; height: 16px;"></i>
+                Kelola Downline 👥
             </button>
             <button class="tab-btn" id="nav-admin" style="border-radius: 12px; padding: 12px 20px; display: none; background: rgba(168, 85, 247, 0.08); border-color: rgba(168, 85, 247, 0.15); color: #c084fc;">
                 <i data-lucide="shield" style="width: 16px; height: 16px;"></i>
@@ -752,6 +756,85 @@
                         <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
                         Ekspor Laporan CSV
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2.5: DOWNLINES VIEW -->
+        <div id="view-downlines" style="display: none; flex-direction: column; gap: 24px;">
+            <!-- Downlines Header -->
+            <div class="glass-card" style="padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                <div>
+                    <h2 style="font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="users" class="text-primary" style="width: 24px; height: 24px;"></i>
+                        Kelola Jaringan Downline (Referral)
+                    </h2>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Daftarkan agen baru di bawah Anda, atur selisih harga (markup), dan pantau komisi masuk.</p>
+                </div>
+            </div>
+
+            <!-- Downlines Grid Content -->
+            <div style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+                <!-- Register Downline Form Card -->
+                <div class="glass-card" style="padding: 20px; border-radius: 16px;">
+                    <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="user-plus" style="width: 16px; height: 16px; color: var(--primary);"></i>
+                        Daftarkan Agen Baru (Downline)
+                    </h3>
+                    <form id="downline-register-form">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: flex-end;">
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label class="input-label" style="font-size: 10px;">Nama Lengkap</label>
+                                <input type="text" id="downline-name" placeholder="Nama Agen" style="font-size: 12px; padding: 8px 10px;" class="input-field" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label class="input-label" style="font-size: 10px;">Username Login</label>
+                                <input type="text" id="downline-username" placeholder="username_agen" style="font-size: 12px; padding: 8px 10px;" class="input-field" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label class="input-label" style="font-size: 10px;">Email Agen</label>
+                                <input type="email" id="downline-email" placeholder="email@agen.com" style="font-size: 12px; padding: 8px 10px;" class="input-field" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label class="input-label" style="font-size: 10px;">Password Login</label>
+                                <input type="password" id="downline-password" placeholder="Min 6 Karakter" style="font-size: 12px; padding: 8px 10px;" class="input-field" required>
+                            </div>
+                            <div class="input-group" style="margin-bottom: 0;">
+                                <label class="input-label" style="font-size: 10px;">Selisih Harga (Markup Rp)</label>
+                                <input type="number" id="downline-markup" placeholder="Contoh: 100" style="font-size: 12px; padding: 8px 10px;" class="input-field" required>
+                            </div>
+                            <button type="submit" class="btn-topup" style="height: 38px; border-radius: 8px; font-size: 12px; justify-content: center; font-weight: 700; width: 100%;">
+                                <i data-lucide="plus" style="width: 14px; height: 14px;"></i> Daftarkan Agen
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Downline List Table Card -->
+                <div class="glass-card" style="padding: 24px; border-radius: 20px;">
+                    <h3 style="font-size: 15px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="list" style="width: 18px; height: 18px; color: var(--primary);"></i>
+                        Daftar Downline Anda
+                    </h3>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--card-border); color: var(--text-secondary);">
+                                    <th style="padding: 10px 6px;">Tanggal Gabung</th>
+                                    <th style="padding: 10px 6px;">Nama Agen</th>
+                                    <th style="padding: 10px 6px;">Username</th>
+                                    <th style="padding: 10px 6px;">Email</th>
+                                    <th style="padding: 10px 6px; text-align: right;">Saldo</th>
+                                    <th style="padding: 10px 6px; text-align: center;">Markup (Selisih)</th>
+                                    <th style="padding: 10px 6px; text-align: center;">Total Trx</th>
+                                    <th style="padding: 10px 6px; text-align: right;">Komisi Didapat</th>
+                                </tr>
+                            </thead>
+                            <tbody id="downline-list-table-body">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

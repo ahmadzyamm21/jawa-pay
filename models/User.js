@@ -56,6 +56,16 @@ module.exports = (sequelize) => {
             type: DataTypes.STRING,
             allowNull: false,
             defaultValue: 'agent'
+        },
+        uplineId: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: null
+        },
+        referralMarkup: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0
         }
     }, {
         tableName: 'users',

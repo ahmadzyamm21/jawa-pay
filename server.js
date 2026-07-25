@@ -272,6 +272,83 @@ async function sendOtpEmail(email, name, otpCode) {
     }
 }
 
+// Helper to get referral markup for a request
+async function getRequestUserReferralMarkup(req) {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        if (!token) return 0;
+        
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded && decoded.id) {
+            const user = await User.findByPk(decoded.id);
+            return user ? (user.referralMarkup || 0) : 0;
+        }
+    } catch (err) {
+        // Ignore error since products can be public
+    }
+    return 0;
+}
+
+// Helper to deeply clone catalog and apply referral markup
+function applyReferralMarkup(catalog, markup) {
+    if (!catalog || markup <= 0) return catalog;
+    
+    const clone = JSON.parse(JSON.stringify(catalog));
+    const processArray = (arr) => {
+        if (!Array.isArray(arr)) return;
+        arr.forEach(item => {
+            if (item && typeof item.priceAgent === 'number') {
+                item.priceAgent += markup;
+            }
+        });
+    };
+    
+    for (const catKey in clone) {
+        const cat = clone[catKey];
+        if (catKey === 'pln') {
+            processArray(cat.global);
+        } else {
+            for (const brandKey in cat) {
+                processArray(cat[brandKey]);
+            }
+        }
+    }
+    return clone;
+}
+
+// Process refund for failed transactions, including commission reversal
+async function handleFailedTransactionRefund(trx, oldStatus, transactionObj = null) {
+    if (oldStatus === 'Gagal') return; // Already refunded
+    if (trx.paymentMethod !== 'Saldo Agen') return;
+
+    const opt = transactionObj ? { transaction: transactionObj } : {};
+
+    // 1. Refund the agent
+    const user = await User.findByPk(trx.userId, opt);
+    if (user) {
+        const refundAmount = trx.priceAgent - (trx.discountApplied || 0);
+        user.balance += refundAmount;
+        await user.save(opt);
+        console.log(`[Refund] Returned Rp ${refundAmount} to user ${user.username} (ID: ${user.id}) for failed transaction ${trx.id}`);
+    }
+
+    // 2. Refund / Deduct the commission from upline if applicable
+    const commTrx = await Transaction.findOne({
+        where: { id: `COMM-${trx.id}`, status: 'Sukses' },
+        ...opt
+    });
+    if (commTrx) {
+        const upline = await User.findByPk(commTrx.userId, opt);
+        if (upline) {
+            upline.balance -= commTrx.profit;
+            await upline.save(opt);
+            commTrx.status = 'Gagal';
+            await commTrx.save(opt);
+            console.log(`[Refund Commission] Deducted Rp ${commTrx.profit} commission from upline ${upline.username} (ID: ${upline.id}) for failed transaction ${trx.id}`);
+        }
+    }
+}
 
 // Check if credentials are mock/default
 function isDigiflazzMock() {
@@ -691,14 +768,8 @@ app.post('/api/admin/transactions/:id/status', authenticateAdmin, async (req, re
         trx.status = status;
         await trx.save();
 
-        if (status === 'Gagal' && oldStatus !== 'Gagal' && trx.paymentMethod === 'Saldo Agen') {
-            const user = await User.findByPk(trx.userId);
-            if (user) {
-                const refundAmount = trx.priceAgent - (trx.discountApplied || 0);
-                user.balance += refundAmount;
-                await user.save();
-                console.log(`[Admin Refund] Transaksi ${trx.id} dibatalkan oleh Admin. Refund Rp ${refundAmount} dikembalikan ke ${user.username}`);
-            }
+        if (status === 'Gagal' && oldStatus !== 'Gagal') {
+            await handleFailedTransactionRefund(trx, oldStatus);
         }
 
         res.json({ success: true, message: `Status transaksi berhasil diubah menjadi ${status}.` });
@@ -1080,28 +1151,123 @@ app.post('/api/auth/profile/update-markup', authenticateToken, async (req, res) 
         
         user.markupFlat = parseInt(markupFlat);
         await user.save();
-        
-        console.log(`[Database SQL] Markup User ${user.username} diperbarui menjadi: Rp ${user.markupFlat}`);
+              console.log(`[Database SQL] Markup User ${user.username} diperbarui menjadi: Rp ${user.markupFlat}`);
         res.json({ success: true, markupFlat: user.markupFlat });
     } catch (err) {
-        console.error('Update markup error:', err);
+        console.error('Update profile markup error:', err);
         res.status(500).json({ error: 'Gagal memperbarui markup.' });
     }
 });
 
-// Get Product List (Prepaid Price List from Digiflazz)
-app.get('/api/products', async (req, res) => {
+// Get downlines list for current agent
+app.get('/api/downlines/list', authenticateToken, async (req, res) => {
     try {
-        if (isDigiflazzMock()) {
-            console.log('[Digiflazz Mock] Menggunakan daftar produk fallback lokal.');
-            return res.json(FALLBACK_PRODUCTS);
+        const userId = req.user.id;
+        const { Op } = db.Sequelize;
+        
+        const downlines = await User.findAll({
+            where: { uplineId: userId },
+            attributes: ['id', 'name', 'username', 'email', 'balance', 'referralMarkup', 'createdAt']
+        });
+        
+        const result = [];
+        for (const dl of downlines) {
+            const trxCount = await Transaction.count({
+                where: { userId: dl.id, status: 'Sukses' }
+            });
+            
+            const commSum = await Transaction.sum('profit', {
+                where: { id: { [Op.like]: `COMM-%` }, userId: userId, productName: `Komisi Downline: ${dl.username}`, status: 'Sukses' }
+            }) || 0;
+            
+            result.push({
+                id: dl.id,
+                name: dl.name,
+                username: dl.username,
+                email: dl.email,
+                balance: dl.balance,
+                referralMarkup: dl.referralMarkup,
+                createdAt: dl.createdAt,
+                transactionCount: trxCount,
+                totalCommission: commSum
+            });
+        }
+        
+        res.json({ success: true, downlines: result });
+    } catch (err) {
+        console.error('Fetch downlines error:', err);
+        res.status(500).json({ error: 'Gagal memuat daftar downline.' });
+    }
+});
+
+// Register new downline
+app.post('/api/downlines/register', authenticateToken, async (req, res) => {
+    const { name, username, email, password, referralMarkup } = req.body;
+    const uplineId = req.user.id;
+
+    if (!name || !username || !email || !password) {
+        return res.status(400).json({ error: 'Data tidak lengkap.' });
+    }
+
+    const markup = parseInt(referralMarkup) || 0;
+    if (markup < 0) {
+        return res.status(400).json({ error: 'Markup tidak boleh negatif.' });
+    }
+
+    try {
+        const existingUser = await User.findOne({ where: { username } });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Username sudah digunakan.' });
         }
 
+        const nextId = 'USR' + Math.floor(Math.random() * 900000 + 100000);
+        
+        const newDownline = await User.create({
+            id: nextId,
+            name,
+            username,
+            password: hashPassword(password),
+            email,
+            isVerified: true,
+            balance: 0,
+            markupFlat: 1500,
+            role: 'agent',
+            uplineId: uplineId,
+            referralMarkup: markup
+        });
 
-        // Check if cache is still valid
+        console.log(`[Downline System] Agent ${req.user.username} registered downline ${username} with markup Rp ${markup}`);
+
+        res.json({
+            success: true,
+            message: 'Downline berhasil didaftarkan.',
+            downline: {
+                id: newDownline.id,
+                name: newDownline.name,
+                username: newDownline.username,
+                email: newDownline.email,
+                referralMarkup: newDownline.referralMarkup
+            }
+        });
+    } catch (err) {
+        console.error('Register downline error:', err);
+        res.status(500).json({ error: 'Gagal mendaftarkan downline.' });
+    }
+});
+
+// Get Product List (Prepaid Price List from Digiflazz) with Referral Markup applied dynamically
+app.get('/api/products', async (req, res) => {
+    try {
+        const userMarkup = await getRequestUserReferralMarkup(req);
+
+        if (isDigiflazzMock()) {
+            console.log('[Digiflazz Mock] Menggunakan daftar produk fallback lokal.');
+            return res.json(applyReferralMarkup(FALLBACK_PRODUCTS, userMarkup));
+        }
+
         const isCacheValid = cachedProducts && (Date.now() - lastCacheTime < CACHE_DURATION);
         if (isCacheValid) {
-            return res.json(cachedProducts);
+            return res.json(applyReferralMarkup(cachedProducts, userMarkup));
         }
 
         const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + 'pricelist');
@@ -1113,24 +1279,19 @@ app.get('/api/products', async (req, res) => {
 
         if (response.data && Array.isArray(response.data.data)) {
             const parsed = parseDigiflazzProducts(response.data.data);
-            
-            // Save to cache
             cachedProducts = parsed;
             lastCacheTime = Date.now();
             console.log('[Digiflazz API] Katalog produk berhasil dimuat dan disimpan di cache.');
-            
-            return res.json(parsed);
+            return res.json(applyReferralMarkup(parsed, userMarkup));
         } else {
             const msg = response.data && response.data.data ? response.data.data.message : 'Respon kosong';
             console.warn(`[Digiflazz API] Gagal memuat daftar harga (${msg}). Menggunakan cache/fallback.`);
-            
-            // Return cached products if they exist, otherwise return local fallback catalog
-            return res.json(cachedProducts || FALLBACK_PRODUCTS);
+            return res.json(applyReferralMarkup(cachedProducts || FALLBACK_PRODUCTS, userMarkup));
         }
     } catch (error) {
         console.error('Error fetching Digiflazz products:', error.message);
-        // Return cached products if they exist, otherwise return local fallback catalog
-        res.json(cachedProducts || FALLBACK_PRODUCTS);
+        const userMarkup = await getRequestUserReferralMarkup(req);
+        res.json(applyReferralMarkup(cachedProducts || FALLBACK_PRODUCTS, userMarkup));
     }
 });
 
@@ -1233,6 +1394,9 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
             const user = await User.findByPk(userId, { transaction: t, lock: true });
             if (!user) throw new Error('USER_NOT_FOUND');
 
+            const referralMarkup = user.referralMarkup || 0;
+            const actualProductCost = productCost + referralMarkup;
+
             // Validate Voucher if supplied
             let discountApplied = 0;
             let appliedVoucher = null;
@@ -1241,15 +1405,15 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
                 if (appliedVoucher && appliedVoucher.isActive && appliedVoucher.usedCount < appliedVoucher.maxUse) {
                     discountApplied = appliedVoucher.discount;
                     if (appliedVoucher.type === 'percent') {
-                        discountApplied = Math.round(productCost * (appliedVoucher.discount / 100));
+                        discountApplied = Math.round(actualProductCost * (appliedVoucher.discount / 100));
                     }
-                    if (discountApplied > productCost) {
-                        discountApplied = productCost;
+                    if (discountApplied > actualProductCost) {
+                        discountApplied = actualProductCost;
                     }
                 }
             }
 
-            const finalCost = productCost - discountApplied;
+            const finalCost = actualProductCost - discountApplied;
             if (user.balance < finalCost) throw new Error('INSUFFICIENT_BALANCE');
 
             // API Purchase Simulation / Call
@@ -1323,8 +1487,8 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
                 category: foundProd ? foundProd.category : 'pulsa',
                 productName: productName,
                 target: customer_no,
-                priceAgent: productCost,
-                priceSell: productCost + profit - discountApplied, // Adjusted by discount
+                priceAgent: actualProductCost,
+                priceSell: actualProductCost + profit - discountApplied, // Adjusted by discount
                 profit: profit,
                 paymentMethod: 'Saldo Agen',
                 status: purchaseResult.status,
@@ -1332,6 +1496,33 @@ app.post('/api/transaction', authenticateToken, async (req, res) => {
                 voucherCode: appliedVoucher ? appliedVoucher.code : null,
                 discountApplied: discountApplied
             }, { transaction: t });
+
+            // If user has an upline, award commission and log upline transaction
+            const commission = user.referralMarkup || 0;
+            if (user.uplineId && commission > 0) {
+                const upline = await User.findByPk(user.uplineId, { transaction: t, lock: true });
+                if (upline) {
+                    upline.balance += commission;
+                    await upline.save({ transaction: t });
+
+                    // Create commission transaction for upline
+                    await Transaction.create({
+                        id: `COMM-${ref_id}`,
+                        userId: upline.id,
+                        category: 'komisi',
+                        productName: `Komisi Downline: ${user.username}`,
+                        target: `Downline: ${user.username}`,
+                        priceAgent: 0,
+                        priceSell: commission,
+                        profit: commission,
+                        paymentMethod: 'Komisi',
+                        status: purchaseResult.status,
+                        sn: `COMM-${ref_id}`
+                    }, { transaction: t });
+
+                    console.log(`[Commission System] Awarded Rp ${commission} commission to upline ${upline.username} for transaction ${ref_id} by downline ${user.username}`);
+                }
+            }
 
             if (appliedVoucher) {
                 appliedVoucher.usedCount += 1;
@@ -1443,15 +1634,9 @@ app.post('/api/digiflazz/callback', async (req, res) => {
 
                 console.log(`[Digiflazz Webhook] Transaction ${trx.id} status updated from ${oldStatus} to ${newStatus}. SN: ${sn || 'N/A'}`);
 
-                // If status changed to Gagal, refund user's balance
-                if (newStatus === 'Gagal' && oldStatus !== 'Gagal' && trx.paymentMethod === 'Saldo Agen') {
-                    const user = await User.findByPk(trx.userId, { transaction: t, lock: true });
-                    if (user) {
-                        const refundAmount = trx.priceAgent - (trx.discountApplied || 0);
-                        user.balance += refundAmount;
-                        await user.save({ transaction: t });
-                        console.log(`[Digiflazz Webhook] Refunded Rp ${refundAmount} to user ${user.id} due to failed transaction.`);
-                    }
+                // If status changed to Gagal, refund user's balance and commission
+                if (newStatus === 'Gagal' && oldStatus !== 'Gagal') {
+                    await handleFailedTransactionRefund(trx, oldStatus, t);
                 }
             }
         });
@@ -1808,6 +1993,8 @@ async function runSQLiteMigrations() {
         await addColumnIfMissing('users', 'otpCode', "VARCHAR(10) DEFAULT NULL");
         await addColumnIfMissing('users', 'otpExpires', "DATETIME DEFAULT NULL");
         await addColumnIfMissing('users', 'role', "VARCHAR(20) DEFAULT 'agent'");
+        await addColumnIfMissing('users', 'uplineId', "VARCHAR(255) DEFAULT NULL");
+        await addColumnIfMissing('users', 'referralMarkup', "INTEGER DEFAULT 0");
     } catch (migErr) {
         console.warn('[Migration Warning] Gagal mengecek/menambahkan kolom:', migErr.message);
     }
