@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 8000;
 
 // Import Sequelize database models
 const db = require('./models');
-const { User, Transaction, Voucher, sequelize } = db;
+const { User, Transaction, Voucher, Setting, Deposit, sequelize } = db;
 
 // Enable CORS and JSON parsing
 app.use(cors());
@@ -304,6 +304,15 @@ function authenticateToken(req, res, next) {
     });
 }
 
+function authenticateAdmin(req, res, next) {
+    authenticateToken(req, res, () => {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Akses ditolak. Anda bukan Administrator.' });
+        }
+        next();
+    });
+}
+
 // ---------------- AUTENTIKASI ROUTES ----------------
 
 // Register (Initiates 6-Digit Email OTP Verification)
@@ -378,14 +387,14 @@ app.post('/api/auth/verify-otp', async (req, res) => {
         if (user.isVerified) {
             // Already verified, generate token and log in
             const token = jwt.sign(
-                { id: user.id, username: user.username, name: user.name },
+                { id: user.id, username: user.username, name: user.name, role: user.role },
                 JWT_SECRET,
                 { expiresIn: '24h' }
             );
             return res.json({
                 success: true,
                 token: token,
-                user: { id: user.id, name: user.name, username: user.username, markupFlat: user.markupFlat }
+                user: { id: user.id, name: user.name, username: user.username, markupFlat: user.markupFlat, role: user.role }
             });
         }
 
@@ -407,7 +416,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
         console.log(`[Email OTP] Akun ${user.username} (${user.email}) berhasil diverifikasi via OTP!`);
 
         const token = jwt.sign(
-            { id: user.id, username: user.username, name: user.name },
+            { id: user.id, username: user.username, name: user.name, role: user.role },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -416,7 +425,7 @@ app.post('/api/auth/verify-otp', async (req, res) => {
             success: true,
             message: 'Verifikasi Kode OTP Berhasil! Selamat datang di Jawa Pay.',
             token: token,
-            user: { id: user.id, name: user.name, username: user.username, markupFlat: user.markupFlat }
+            user: { id: user.id, name: user.name, username: user.username, markupFlat: user.markupFlat, role: user.role }
         });
     } catch (err) {
         console.error('Verify OTP Error:', err);
@@ -482,7 +491,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, username: user.username, name: user.name },
+            { id: user.id, username: user.username, name: user.name, role: user.role },
             JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -490,7 +499,7 @@ app.post('/api/auth/login', async (req, res) => {
         res.json({
             success: true,
             token: token,
-            user: { id: user.id, name: user.name, username: user.username, markupFlat: user.markupFlat }
+            user: { id: user.id, name: user.name, username: user.username, markupFlat: user.markupFlat, role: user.role }
         });
     } catch (err) {
         console.error('Login database error:', err);
@@ -516,11 +525,500 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
             username: user.username,
             balance: user.balance,
             markupFlat: user.markupFlat,
+            role: user.role,
             transactions: user.transactions
         });
     } catch (err) {
         console.error('Get profile database error:', err);
         res.status(500).json({ error: 'Gagal memuat profil pengguna.' });
+    }
+});
+
+// ==========================================
+//             ADMIN API ENDPOINTS
+// ==========================================
+
+// Get summary stats (total balance, total agents, Digiflazz balance)
+app.get('/api/admin/summary', authenticateAdmin, async (req, res) => {
+    try {
+        const totalUsers = await User.count({ where: { role: 'agent' } });
+        const totalBalance = await User.sum('balance', { where: { role: 'agent' } }) || 0;
+        
+        const successTrxs = await Transaction.count({ where: { status: 'Sukses' } });
+        const pendingTrxs = await Transaction.count({ where: { status: 'Pending' } });
+        const failedTrxs = await Transaction.count({ where: { status: 'Gagal' } });
+
+        let digiflazzBalance = 0;
+        try {
+            const sign = calculateMD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + 'depo');
+            const dfRes = await axios.post(`${DIGIFLAZZ_BASE_URL}/cek-saldo`, {
+                cmd: 'deposit',
+                username: DIGIFLAZZ_USERNAME,
+                sign: sign
+            });
+            if (dfRes.data && dfRes.data.data) {
+                digiflazzBalance = dfRes.data.data.deposit || 0;
+            }
+        } catch (dfErr) {
+            console.error('[Admin Summary] Gagal cek saldo Digiflazz:', dfErr.message);
+        }
+
+        res.json({
+            success: true,
+            summary: {
+                totalUsers,
+                totalBalance,
+                successTrxs,
+                pendingTrxs,
+                failedTrxs,
+                digiflazzBalance
+            }
+        });
+    } catch (err) {
+        console.error('Admin summary error:', err);
+        res.status(500).json({ error: 'Gagal memuat ringkasan admin.' });
+    }
+});
+
+// Get all agents (users)
+app.get('/api/admin/users', authenticateAdmin, async (req, res) => {
+    try {
+        const users = await User.findAll({
+            attributes: ['id', 'name', 'username', 'email', 'balance', 'markupFlat', 'role', 'isVerified', 'createdAt'],
+            order: [['createdAt', 'DESC']]
+        });
+        res.json({ success: true, users });
+    } catch (err) {
+        console.error('Admin get users error:', err);
+        res.status(500).json({ error: 'Gagal memuat daftar agen.' });
+    }
+});
+
+// Adjust agent balance
+app.put('/api/admin/users/:id/balance', authenticateAdmin, async (req, res) => {
+    const { amount, action } = req.body; // action: 'add' or 'subtract'
+    const targetUserId = req.params.id;
+
+    if (!amount || isNaN(amount) || parseInt(amount) <= 0) {
+        return res.status(400).json({ error: 'Nominal penyesuaian tidak valid.' });
+    }
+
+    try {
+        const user = await User.findByPk(targetUserId);
+        if (!user) return res.status(404).json({ error: 'Agen tidak ditemukan.' });
+
+        const adjustment = parseInt(amount);
+        if (action === 'add') {
+            user.balance += adjustment;
+        } else if (action === 'subtract') {
+            if (user.balance < adjustment) {
+                return res.status(400).json({ error: 'Saldo agen tidak mencukupi untuk dikurangi.' });
+            }
+            user.balance -= adjustment;
+        } else {
+            return res.status(400).json({ error: 'Aksi penyesuaian tidak valid.' });
+        }
+
+        await user.save();
+        console.log(`[Admin Balance] Admin (${req.user.username}) mengubah saldo ${user.username} (${action === 'add' ? '+' : '-'}${adjustment}) menjadi ${user.balance}`);
+
+        res.json({ success: true, balance: user.balance, message: 'Saldo agen berhasil disesuaikan.' });
+    } catch (err) {
+        console.error('Admin balance adjust error:', err);
+        res.status(500).json({ error: 'Gagal menyesuaikan saldo agen.' });
+    }
+});
+
+// Edit agent flat markup
+app.put('/api/admin/users/:id/markup', authenticateAdmin, async (req, res) => {
+    const { markupFlat } = req.body;
+    const targetUserId = req.params.id;
+
+    if (markupFlat === undefined || isNaN(markupFlat) || parseInt(markupFlat) < 0) {
+        return res.status(400).json({ error: 'Markup flat tidak valid.' });
+    }
+
+    try {
+        const user = await User.findByPk(targetUserId);
+        if (!user) return res.status(404).json({ error: 'Agen tidak ditemukan.' });
+
+        user.markupFlat = parseInt(markupFlat);
+        await user.save();
+
+        res.json({ success: true, markupFlat: user.markupFlat, message: 'Markup agen berhasil diperbarui.' });
+    } catch (err) {
+        console.error('Admin markup update error:', err);
+        res.status(500).json({ error: 'Gagal memperbarui markup agen.' });
+    }
+});
+
+// Get global transactions history
+app.get('/api/admin/transactions', authenticateAdmin, async (req, res) => {
+    try {
+        const transactions = await Transaction.findAll({
+            include: [{
+                model: User,
+                as: 'user',
+                attributes: ['username', 'name']
+            }],
+            order: [['createdAt', 'DESC']]
+        });
+        res.json({ success: true, transactions });
+    } catch (err) {
+        console.error('Admin get transactions error:', err);
+        res.status(500).json({ error: 'Gagal memuat riwayat transaksi global.' });
+    }
+});
+
+// Change transaction status (with auto-refund on fail)
+app.post('/api/admin/transactions/:id/status', authenticateAdmin, async (req, res) => {
+    const { status } = req.body; // 'Sukses', 'Pending', 'Gagal'
+    const trxId = req.params.id;
+
+    if (!['Sukses', 'Pending', 'Gagal'].includes(status)) {
+        return res.status(400).json({ error: 'Status tidak valid.' });
+    }
+
+    try {
+        const trx = await Transaction.findByPk(trxId);
+        if (!trx) return res.status(404).json({ error: 'Transaksi tidak ditemukan.' });
+
+        const oldStatus = trx.status;
+        if (oldStatus === status) {
+            return res.json({ success: true, message: 'Status transaksi tidak berubah.' });
+        }
+
+        trx.status = status;
+        await trx.save();
+
+        if (status === 'Gagal' && oldStatus !== 'Gagal' && trx.paymentMethod === 'Saldo Agen') {
+            const user = await User.findByPk(trx.userId);
+            if (user) {
+                const refundAmount = trx.priceAgent - (trx.discountApplied || 0);
+                user.balance += refundAmount;
+                await user.save();
+                console.log(`[Admin Refund] Transaksi ${trx.id} dibatalkan oleh Admin. Refund Rp ${refundAmount} dikembalikan ke ${user.username}`);
+            }
+        }
+
+        res.json({ success: true, message: `Status transaksi berhasil diubah menjadi ${status}.` });
+    } catch (err) {
+        console.error('Admin set transaction status error:', err);
+        res.status(500).json({ error: 'Gagal mengubah status transaksi.' });
+    }
+});
+
+// Get all vouchers
+app.get('/api/admin/vouchers', authenticateAdmin, async (req, res) => {
+    try {
+        const vouchers = await Voucher.findAll({
+            order: [['createdAt', 'DESC']]
+        });
+        res.json({ success: true, vouchers });
+    } catch (err) {
+        console.error('Admin get vouchers error:', err);
+        res.status(500).json({ error: 'Gagal memuat daftar voucher.' });
+    }
+});
+
+// Create new voucher
+app.post('/api/admin/vouchers', authenticateAdmin, async (req, res) => {
+    const { code, discount, type, isActive, maxUse } = req.body;
+
+    if (!code || !discount || !type) {
+        return res.status(400).json({ error: 'Informasi voucher tidak lengkap.' });
+    }
+
+    try {
+        const exists = await Voucher.findByPk(code.toUpperCase().trim());
+        if (exists) {
+            return res.status(400).json({ error: 'Kode voucher sudah digunakan.' });
+        }
+
+        const voucher = await Voucher.create({
+            code: code.toUpperCase().trim(),
+            discount: parseInt(discount),
+            type: type,
+            isActive: isActive !== undefined ? isActive : true,
+            maxUse: maxUse ? parseInt(maxUse) : 100,
+            usedCount: 0
+        });
+
+        res.json({ success: true, voucher, message: 'Voucher baru berhasil dibuat.' });
+    } catch (err) {
+        console.error('Admin create voucher error:', err);
+        res.status(500).json({ error: 'Gagal membuat voucher baru.' });
+    }
+});
+
+// Edit voucher
+app.put('/api/admin/vouchers/:code', authenticateAdmin, async (req, res) => {
+    const { discount, type, isActive, maxUse } = req.body;
+    const code = req.params.code.toUpperCase().trim();
+
+    try {
+        const voucher = await Voucher.findByPk(code);
+        if (!voucher) return res.status(404).json({ error: 'Voucher tidak ditemukan.' });
+
+        if (discount !== undefined) voucher.discount = parseInt(discount);
+        if (type !== undefined) voucher.type = type;
+        if (isActive !== undefined) voucher.isActive = isActive;
+        if (maxUse !== undefined) voucher.maxUse = parseInt(maxUse);
+
+        await voucher.save();
+        res.json({ success: true, voucher, message: 'Detail voucher berhasil diperbarui.' });
+    } catch (err) {
+        console.error('Admin update voucher error:', err);
+        res.status(500).json({ error: 'Gagal memperbarui voucher.' });
+    }
+});
+
+// Delete voucher
+app.delete('/api/admin/vouchers/:code', authenticateAdmin, async (req, res) => {
+    const code = req.params.code.toUpperCase().trim();
+
+    try {
+        const voucher = await Voucher.findByPk(code);
+        if (!voucher) return res.status(404).json({ error: 'Voucher tidak ditemukan.' });
+
+        await voucher.destroy();
+        res.json({ success: true, message: 'Voucher berhasil dihapus.' });
+    } catch (err) {
+        console.error('Admin delete voucher error:', err);
+        res.status(500).json({ error: 'Gagal menghapus voucher.' });
+    }
+});
+
+// Get system announcement (Public)
+app.get('/api/config/announcement', async (req, res) => {
+    try {
+        const { Setting } = db;
+        const announcement = await Setting.findByPk('announcement');
+        res.json({
+            success: true,
+            announcement: announcement ? announcement.value : '📢 Info Layanan: Sistem pembayaran QRIS & Virtual Account Mandiri/BCA lancar jaya.'
+        });
+    } catch (err) {
+        console.error('Get announcement error:', err);
+        res.status(500).json({ error: 'Gagal mengambil pengumuman.' });
+    }
+});
+
+// Update system announcement (Admin only)
+app.put('/api/admin/announcement', authenticateAdmin, async (req, res) => {
+    const { announcement } = req.body;
+    if (announcement === undefined) {
+        return res.status(400).json({ error: 'Teks pengumuman tidak boleh kosong.' });
+    }
+
+    try {
+        const { Setting } = db;
+        let setting = await Setting.findByPk('announcement');
+        if (!setting) {
+            setting = await Setting.create({ key: 'announcement', value: announcement });
+        } else {
+            setting.value = announcement;
+            await setting.save();
+        }
+        res.json({ success: true, announcement: setting.value, message: 'Teks pengumuman berhasil diperbarui.' });
+    } catch (err) {
+        console.error('Update announcement error:', err);
+        res.status(500).json({ error: 'Gagal memperbarui pengumuman.' });
+    }
+});
+
+// ==========================================
+//           DEPOSIT TIKET MANUAL API
+// ==========================================
+
+// Request manual bank transfer deposit ticket (Protected Agent)
+app.post('/api/deposits/request', authenticateToken, async (req, res) => {
+    const { amount, bankName } = req.body;
+    const userId = req.user.id;
+
+    if (!amount || isNaN(amount) || parseInt(amount) < 10000) {
+        return res.status(400).json({ error: 'Minimal pengajuan deposit adalah Rp 10.000.' });
+    }
+    if (!bankName || !['BCA', 'MANDIRI', 'BRI'].includes(bankName.toUpperCase().trim())) {
+        return res.status(400).json({ error: 'Metode bank transfer tidak didukung.' });
+    }
+
+    try {
+        // Check if user already has a pending request
+        const existingPending = await Deposit.findOne({
+            where: { userId: userId, status: 'Pending' }
+        });
+        if (existingPending) {
+            return res.status(400).json({ 
+                error: 'Anda memiliki tiket deposit pending yang belum diselesaikan.',
+                deposit: existingPending
+            });
+        }
+
+        // Generate a random 3-digit unique code (100 - 999)
+        // Ensure no other pending deposit has the exact same total amount to avoid bank mutation matching confusion
+        let uniqueCode;
+        let totalAmount;
+        let isUnique = false;
+        let retries = 0;
+
+        while (!isUnique && retries < 15) {
+            uniqueCode = Math.floor(100 + Math.random() * 900);
+            totalAmount = parseInt(amount) + uniqueCode;
+
+            const duplicate = await Deposit.findOne({
+                where: { totalAmount: totalAmount, status: 'Pending' }
+            });
+            if (!duplicate) {
+                isUnique = true;
+            }
+            retries++;
+        }
+
+        const depositId = 'DEP' + Date.now();
+        const deposit = await Deposit.create({
+            id: depositId,
+            userId: userId,
+            amount: parseInt(amount),
+            uniqueCode: uniqueCode,
+            totalAmount: totalAmount,
+            bankName: bankName.toUpperCase().trim(),
+            status: 'Pending'
+        });
+
+        console.log(`[Deposit Request] Agen ${req.user.username} mengajukan deposit ${totalAmount} (ID: ${depositId})`);
+
+        res.json({
+            success: true,
+            deposit,
+            bankAccounts: {
+                BCA: { number: '1234567890', owner: 'Ahmad Syamsuri' },
+                MANDIRI: { number: '9876543210', owner: 'Ahmad Syamsuri' },
+                BRI: { number: '1122334455', owner: 'Ahmad Syamsuri' }
+            }
+        });
+    } catch (err) {
+        console.error('Request deposit error:', err);
+        res.status(500).json({ error: 'Gagal membuat tiket deposit.' });
+    }
+});
+
+// Get agent's active pending deposits (Protected Agent)
+app.get('/api/deposits/my-requests', authenticateToken, async (req, res) => {
+    try {
+        const deposits = await Deposit.findAll({
+            where: { userId: req.user.id },
+            order: [['createdAt', 'DESC']]
+        });
+        res.json({
+            success: true,
+            deposits,
+            bankAccounts: {
+                BCA: { number: '1234567890', owner: 'Ahmad Syamsuri' },
+                MANDIRI: { number: '9876543210', owner: 'Ahmad Syamsuri' },
+                BRI: { number: '1122334455', owner: 'Ahmad Syamsuri' }
+            }
+        });
+    } catch (err) {
+        console.error('Get my deposits error:', err);
+        res.status(500).json({ error: 'Gagal memuat tiket deposit Anda.' });
+    }
+});
+
+// Cancel deposit request by Agent (Protected Agent)
+app.post('/api/deposits/:id/cancel', authenticateToken, async (req, res) => {
+    const depositId = req.params.id;
+
+    try {
+        const deposit = await Deposit.findOne({
+            where: { id: depositId, userId: req.user.id }
+        });
+        if (!deposit) return res.status(404).json({ error: 'Tiket deposit tidak ditemukan.' });
+
+        if (deposit.status !== 'Pending') {
+            return res.status(400).json({ error: 'Tiket deposit tidak berstatus pending.' });
+        }
+
+        deposit.status = 'Batal';
+        await deposit.save();
+
+        console.log(`[Deposit Cancel] Agen ${req.user.username} membatalkan tiket deposit ${depositId}`);
+        res.json({ success: true, message: 'Tiket deposit berhasil dibatalkan.' });
+    } catch (err) {
+        console.error('Cancel deposit error:', err);
+        res.status(500).json({ error: 'Gagal membatalkan tiket deposit.' });
+    }
+});
+
+// Get all deposits globally (Protected Admin)
+app.get('/api/admin/deposits', authenticateAdmin, async (req, res) => {
+    try {
+        const deposits = await Deposit.findAll({
+            include: [{
+                model: User,
+                as: 'user',
+                attributes: ['username', 'name']
+            }],
+            order: [['createdAt', 'DESC']]
+        });
+        res.json({ success: true, deposits });
+    } catch (err) {
+        console.error('Admin get deposits error:', err);
+        res.status(500).json({ error: 'Gagal memuat daftar pengajuan deposit global.' });
+    }
+});
+
+// Approve deposit request and credit target agent balance (Protected Admin)
+app.post('/api/admin/deposits/:id/approve', authenticateAdmin, async (req, res) => {
+    const depositId = req.params.id;
+
+    try {
+        const deposit = await Deposit.findByPk(depositId);
+        if (!deposit) return res.status(404).json({ error: 'Tiket deposit tidak ditemukan.' });
+
+        if (deposit.status !== 'Pending') {
+            return res.status(400).json({ error: 'Tiket deposit sudah diproses sebelumnya.' });
+        }
+
+        const user = await User.findByPk(deposit.userId);
+        if (!user) return res.status(404).json({ error: 'Agen pemilik tiket tidak ditemukan.' });
+
+        // Update status and credit balance
+        deposit.status = 'Sukses';
+        await deposit.save();
+
+        user.balance += deposit.totalAmount;
+        await user.save();
+
+        console.log(`[Deposit Approve] Admin (${req.user.username}) menyetujui deposit ${depositId}. Saldo ${user.username} bertambah Rp ${deposit.totalAmount}`);
+
+        res.json({ success: true, message: `Deposit berhasil disetujui. Saldo Rp ${deposit.totalAmount} ditambahkan ke agen ${user.name}.` });
+    } catch (err) {
+        console.error('Approve deposit error:', err);
+        res.status(500).json({ error: 'Gagal menyetujui pengajuan deposit.' });
+    }
+});
+
+// Reject deposit request by Admin (Protected Admin)
+app.post('/api/admin/deposits/:id/reject', authenticateAdmin, async (req, res) => {
+    const depositId = req.params.id;
+
+    try {
+        const deposit = await Deposit.findByPk(depositId);
+        if (!deposit) return res.status(404).json({ error: 'Tiket deposit tidak ditemukan.' });
+
+        if (deposit.status !== 'Pending') {
+            return res.status(400).json({ error: 'Tiket deposit sudah diproses sebelumnya.' });
+        }
+
+        deposit.status = 'Batal';
+        await deposit.save();
+
+        console.log(`[Deposit Reject] Admin (${req.user.username}) menolak pengajuan deposit ${depositId}`);
+        res.json({ success: true, message: 'Pengajuan deposit berhasil ditolak.' });
+    } catch (err) {
+        console.error('Reject deposit error:', err);
+        res.status(500).json({ error: 'Gagal menolak pengajuan deposit.' });
     }
 });
 
@@ -1292,8 +1790,36 @@ function parseDigiflazzProducts(raw) {
     return totalLoaded > 0 ? products : FALLBACK_PRODUCTS;
 }
 
+// Run manual migrations for SQLite to prevent table reconstruction errors
+async function runSQLiteMigrations() {
+    const addColumnIfMissing = async (table, column, definition) => {
+        try {
+            await db.sequelize.query(`SELECT ${column} FROM ${table} LIMIT 1;`);
+        } catch (err) {
+            console.log(`[Migration] Kolom "${column}" tidak ditemukan di tabel "${table}". Menambahkan...`);
+            await db.sequelize.query(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+            console.log(`[Migration] Kolom "${column}" berhasil ditambahkan.`);
+        }
+    };
+    try {
+        await addColumnIfMissing('users', 'email', "VARCHAR(255) DEFAULT 'temp@jawapay.com'");
+        await addColumnIfMissing('users', 'isVerified', "BOOLEAN DEFAULT 0");
+        await addColumnIfMissing('users', 'verificationToken', "VARCHAR(255) DEFAULT NULL");
+        await addColumnIfMissing('users', 'otpCode', "VARCHAR(10) DEFAULT NULL");
+        await addColumnIfMissing('users', 'otpExpires', "DATETIME DEFAULT NULL");
+        await addColumnIfMissing('users', 'role', "VARCHAR(20) DEFAULT 'agent'");
+    } catch (migErr) {
+        console.warn('[Migration Warning] Gagal mengecek/menambahkan kolom:', migErr.message);
+    }
+}
+
 // Sync Database and Start Server
-db.sequelize.sync({ alter: true }).then(async () => {
+const dbDialect = process.env.DB_DIALECT || 'sqlite';
+const initDb = dbDialect === 'sqlite' ? runSQLiteMigrations() : Promise.resolve();
+
+initDb.then(() => {
+    return db.sequelize.sync();
+}).then(async () => {
     console.log('[Sequelize] Database SQL Terhubung & Sinkron.');
     
     // Seed default demo user if DB is brand new
@@ -1307,7 +1833,8 @@ db.sequelize.sync({ alter: true }).then(async () => {
             email: 'ahmadzyamm21@gmail.com',
             isVerified: true,
             balance: 750000,
-            markupFlat: 1500
+            markupFlat: 1500,
+            role: 'admin'
         });
         console.log('[Sequelize Seed] Akun demo bawaan "ahmad" ("password123") sukses dibuat.');
     } else {
@@ -1323,9 +1850,18 @@ db.sequelize.sync({ alter: true }).then(async () => {
                 ahmadUser.isVerified = true;
                 needsSave = true;
             }
+            if (ahmadUser.role !== 'admin') {
+                ahmadUser.role = 'admin';
+                needsSave = true;
+            }
+            // Force reset password of seed admin user to default for convenience
+            if (ahmadUser.password !== hashPassword('password123')) {
+                ahmadUser.password = hashPassword('password123');
+                needsSave = true;
+            }
             if (needsSave) {
                 await ahmadUser.save();
-                console.log('[Sequelize Repair] Akun demo ahmad diperbarui agar terverifikasi (isVerified: true).');
+                console.log('[Sequelize Repair] Akun demo ahmad diperbarui (isVerified: true, role: admin, password reset).');
             }
         }
     }
@@ -1339,6 +1875,17 @@ db.sequelize.sync({ alter: true }).then(async () => {
             { code: 'DISKON500', discount: 500, type: 'flat', isActive: true, maxUse: 200, usedCount: 0 }
         ]);
         console.log('[Sequelize Seed] Voucher bawaan JAWAPAYNEW, PLNHEMAT, DISKON500 sukses dibuat.');
+    }
+
+    // Seed default settings if empty
+    const { Setting } = db;
+    const announcementSetting = await Setting.findByPk('announcement');
+    if (!announcementSetting) {
+        await Setting.create({
+            key: 'announcement',
+            value: '📢 Info Layanan: Sistem pembayaran QRIS & Virtual Account Mandiri/BCA lancar jaya | ⚡ TOKEN PLN promo potongan harga otomatis malam ini | 📱 Layanan Paket Data XL gangguan pemeliharaan sementara.'
+        });
+        console.log('[Sequelize Seed] Teks Pengumuman bawaan sukses dibuat.');
     }
 
     const dbDialect = process.env.DB_DIALECT || 'sqlite';

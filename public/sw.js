@@ -1,12 +1,16 @@
-const CACHE_NAME = 'jawapay-cache-v1';
+const CACHE_NAME = 'jawapay-cache-v2';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
     '/style.css',
     '/app.js',
+    '/logo.png',
     '/icon-192.png',
     '/icon-512.png',
-    'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap'
+    '/jawapay_hero.png',
+    'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap',
+    'https://unpkg.com/lucide@latest/dist/umd/lucide.min.js',
+    'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
 // Install Event

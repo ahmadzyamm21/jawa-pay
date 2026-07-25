@@ -1,3 +1,15 @@
+// API Base URL Configuration
+// For production: Change this to your deployed backend URL
+// For development: Use localhost
+const API_BASE_URL = window.location.protocol === 'file:' || window.location.protocol === 'capacitor:' 
+    ? 'https://jawa-pay.onrender.com'  // Backend production di Render
+    : ''; // Empty string untuk web (relative path)
+
+// Helper function untuk API calls
+function apiUrl(path) {
+    return `${API_BASE_URL}${path}`;
+}
+
 // Operator prefixes
 const PREFIXES = {
     telkomsel: ['0811', '0812', '0813', '0821', '0822', '0852', '0853', '0823'],
@@ -152,6 +164,10 @@ const DOM = {
     voucherStatusMsg: document.getElementById('voucher-status-msg'),
     discountRow: document.getElementById('checkout-discount-row'),
     discountVal: document.getElementById('checkout-discount-val'),
+
+    // Admin elements
+    navAdmin: document.getElementById('nav-admin'),
+    viewAdmin: document.getElementById('view-admin'),
 };
 
 // ---------------- AUTHENTICATION CLIENT FLOW ----------------
@@ -166,12 +182,21 @@ async function checkAuth() {
     if (token) {
         // Fetch user profile from API
         try {
-            const res = await fetch('/api/auth/profile', {
+            const res = await fetch(apiUrl('/api/auth/profile'), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
                 const profile = await res.json();
-                state.user = { id: profile.id, name: profile.name, username: profile.username };
+                state.user = { id: profile.id, name: profile.name, username: profile.username, role: profile.role };
+                
+                // Show admin button if role is admin
+                if (DOM.navAdmin) {
+                    if (state.user.role === 'admin') {
+                        DOM.navAdmin.style.display = 'flex';
+                    } else {
+                        DOM.navAdmin.style.display = 'none';
+                    }
+                }
                 state.balance = profile.balance;
                 state.transactions = profile.transactions;
                 
@@ -192,6 +217,7 @@ async function checkAuth() {
                 await fetchProducts();
                 await fetchPaymentChannels();
                 renderProducts();
+                await loadActiveDeposit();
             } else {
                 // Invalid token
                 logout();
@@ -225,7 +251,7 @@ async function handleLogin() {
     DOM.btnLoginSubmit.innerHTML = '⏳ Menghubungkan...';
 
     try {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch(apiUrl('/api/auth/login'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
@@ -288,7 +314,7 @@ async function handleRegister() {
     DOM.btnRegisterSubmit.innerHTML = '⏳ Mendaftarkan...';
 
     try {
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch(apiUrl('/api/auth/register'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, username, password, email })
@@ -346,7 +372,7 @@ async function handleVerifyOtp() {
     DOM.btnOtpSubmit.innerHTML = '⏳ Memverifikasi OTP...';
 
     try {
-        const response = await fetch('/api/auth/verify-otp', {
+        const response = await fetch(apiUrl('/api/auth/verify-otp'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, otpCode })
@@ -381,7 +407,7 @@ async function handleResendOtp() {
     }
 
     try {
-        const response = await fetch('/api/auth/resend-otp', {
+        const response = await fetch(apiUrl('/api/auth/resend-otp'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
@@ -428,14 +454,14 @@ async function syncPendingTransactions() {
     const token = getToken();
     if (!token) return;
     try {
-        const res = await fetch('/api/transactions/sync', {
+        const res = await fetch(apiUrl('/api/transactions/sync'), {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
             const data = await res.json();
             if (data.updated > 0) {
-                const profRes = await fetch('/api/auth/profile', {
+                const profRes = await fetch(apiUrl('/api/auth/profile'), {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (profRes.ok) {
@@ -456,7 +482,7 @@ async function fetchDigiflazzDepositBalance() {
     if (!token || !DOM.settingsDigiflazzDeposit) return;
     DOM.settingsDigiflazzDeposit.textContent = 'Memuat...';
     try {
-        const res = await fetch('/api/digiflazz/deposit-balance', {
+        const res = await fetch(apiUrl('/api/digiflazz/deposit-balance'), {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -475,7 +501,7 @@ async function fetchBalance() {
     const token = getToken();
     if (!token) return;
     try {
-        const res = await fetch('/api/balance', {
+        const res = await fetch(apiUrl('/api/balance'), {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -489,7 +515,7 @@ async function fetchBalance() {
 
 async function fetchProducts() {
     try {
-        const res = await fetch('/api/products');
+        const res = await fetch(apiUrl('/api/products'));
         state.products = await res.json();
     } catch (err) {
         console.error(err);
@@ -498,7 +524,7 @@ async function fetchProducts() {
 
 async function fetchPaymentChannels() {
     try {
-        const res = await fetch('/api/payment-channels');
+        const res = await fetch(apiUrl('/api/payment-channels'));
         state.paymentChannels = await res.json();
         renderPaymentChannels();
     } catch (err) {
@@ -787,9 +813,25 @@ function setupListeners() {
         handleNumberInput(e.target.value);
     });
 
-    DOM.btnTopup.addEventListener('click', () => {
-        DOM.topupModal.classList.add('show');
-    });
+    if (DOM.btnTopup) {
+        DOM.btnTopup.addEventListener('click', () => {
+            if (state.activeDeposit) {
+                showTopupInstructions(state.activeDeposit, state.bankAccounts);
+            } else {
+                document.getElementById('topup-form-content').style.display = 'block';
+                document.getElementById('topup-instruction-box').style.display = 'none';
+                if (DOM.topupAmountInput) DOM.topupAmountInput.value = '';
+            }
+            if (DOM.topupModal) {
+                DOM.topupModal.classList.add('show');
+                // Force visibility as fallback for CSP/extension conflicts
+                DOM.topupModal.style.opacity = '1';
+                DOM.topupModal.style.pointerEvents = 'auto';
+            }
+        });
+    } else {
+        console.error('[DEBUG] DOM.btnTopup is NULL! Cannot attach listener.');
+    }
 
     document.querySelectorAll('.topup-choice-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -804,15 +846,72 @@ function setupListeners() {
     });
 
     DOM.btnSaveTopup.addEventListener('click', async () => {
-        const amount = parseFloat(DOM.topupAmountInput.value);
-        if (amount > 0) {
-            // Locally simulate increment
-            state.balance += amount;
-            DOM.balanceValue.textContent = formatRupiah(state.balance);
-            closeAllModals();
-            alert(`Berhasil menambahkan saldo sebesar ${formatRupiah(amount)} (Simulasi)`);
+        const amount = parseInt(DOM.topupAmountInput.value);
+        const bankName = document.getElementById('topup-bank-select').value;
+        if (!amount || isNaN(amount) || amount < 10000) {
+            alert('Minimal pengisian deposit adalah Rp 10.000');
+            return;
+        }
+
+        try {
+            const token = getToken();
+            const res = await fetch(apiUrl('/api/deposits/request'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ amount, bankName })
+            });
+            const data = await res.json();
+            
+            if (res.ok && data.success) {
+                showTopupInstructions(data.deposit, data.bankAccounts);
+                await loadActiveDeposit(); // Refresh widget
+            } else {
+                alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+            }
+        } catch (err) {
+            console.error('Request deposit error:', err);
+            alert('Gagal menghubungi server.');
         }
     });
+
+    // Handle widget buttons & modal actions
+    const btnTopupDone = document.getElementById('btn-topup-done');
+    if (btnTopupDone) {
+        btnTopupDone.addEventListener('click', () => {
+            closeAllModals();
+            alert('Terima kasih! Pemilik platform akan memverifikasi mutasi bank Anda secara manual. Saldo Anda akan bertambah jika transferan sudah terverifikasi.');
+        });
+    }
+
+    const btnTopupCancel = document.getElementById('btn-topup-cancel');
+    if (btnTopupCancel) {
+        btnTopupCancel.addEventListener('click', async () => {
+            if (confirm('Apakah Anda yakin ingin membatalkan tiket deposit ini?')) {
+                const depositId = btnTopupCancel.getAttribute('data-id');
+                await cancelDeposit(depositId);
+            }
+        });
+    }
+
+    const btnWidgetDepDetail = document.getElementById('btn-widget-dep-detail');
+    if (btnWidgetDepDetail) {
+        btnWidgetDepDetail.addEventListener('click', () => {
+            checkAndShowActiveDepositModal();
+        });
+    }
+
+    const btnWidgetDepCancel = document.getElementById('btn-widget-dep-cancel');
+    if (btnWidgetDepCancel) {
+        btnWidgetDepCancel.addEventListener('click', async () => {
+            if (confirm('Apakah Anda yakin ingin membatalkan tiket deposit ini?')) {
+                const depositId = btnWidgetDepCancel.getAttribute('data-id');
+                await cancelDeposit(depositId);
+            }
+        });
+    }
 
     DOM.btnPay.addEventListener('click', () => {
         processPayment();
@@ -830,31 +929,50 @@ function setupListeners() {
         window.print();
     });
 
-    // Navigation Tabs & Analitik
+    // Navigation Tabs & Analitik & Admin
     const navTransaction = document.getElementById('nav-transaction');
     const navAnalytics = document.getElementById('nav-analytics');
+    const navAdmin = document.getElementById('nav-admin');
     const viewTransaction = document.getElementById('view-transaction');
     const viewAnalytics = document.getElementById('view-analytics');
+    const viewAdmin = document.getElementById('view-admin');
     const btnExportCSV = document.getElementById('btn-export-csv');
-
+ 
     if (navTransaction && navAnalytics) {
         navTransaction.addEventListener('click', () => {
             navTransaction.classList.add('active');
             navAnalytics.classList.remove('active');
+            if (navAdmin) navAdmin.classList.remove('active');
             viewTransaction.style.display = 'block';
             viewAnalytics.style.display = 'none';
+            if (viewAdmin) viewAdmin.style.display = 'none';
         });
-
+ 
         navAnalytics.addEventListener('click', () => {
             navAnalytics.classList.add('active');
             navTransaction.classList.remove('active');
+            if (navAdmin) navAdmin.classList.remove('active');
             viewTransaction.style.display = 'none';
             viewAnalytics.style.display = 'flex';
+            if (viewAdmin) viewAdmin.style.display = 'none';
             
             updateAnalyticsDashboard();
         });
-    }
 
+        if (navAdmin) {
+            navAdmin.addEventListener('click', () => {
+                navAdmin.classList.add('active');
+                navTransaction.classList.remove('active');
+                navAnalytics.classList.remove('active');
+                viewTransaction.style.display = 'none';
+                viewAnalytics.style.display = 'none';
+                if (viewAdmin) viewAdmin.style.display = 'flex';
+                
+                loadAdminDashboard();
+            });
+        }
+    }
+ 
     if (btnExportCSV) {
         btnExportCSV.addEventListener('click', exportToCSV);
     }
@@ -1045,9 +1163,13 @@ function handleNumberInput(val) {
 }
 
 function closeAllModals() {
-    DOM.topupModal.classList.remove('show');
-    DOM.qrisModal.classList.remove('show');
-    DOM.receiptModal.classList.remove('show');
+    if (DOM.topupModal) {
+        DOM.topupModal.classList.remove('show');
+        DOM.topupModal.style.opacity = '';
+        DOM.topupModal.style.pointerEvents = '';
+    }
+    if (DOM.qrisModal) DOM.qrisModal.classList.remove('show');
+    if (DOM.receiptModal) DOM.receiptModal.classList.remove('show');
     if (DOM.settingsModal) DOM.settingsModal.classList.remove('show');
     const termsM = document.getElementById('terms-modal');
     const privacyM = document.getElementById('privacy-modal');
@@ -1085,7 +1207,7 @@ async function executeDirectTransaction() {
     const ref_id = 'REF' + Date.now();
     const token = getToken();
     try {
-        const response = await fetch('/api/transaction', {
+        const response = await fetch(apiUrl('/api/transaction'), {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -1156,7 +1278,7 @@ async function executeMidtransPaymentRequest() {
     DOM.qrisModal.classList.add('show');
 
     try {
-        const response = await fetch('/api/payment/request', {
+        const response = await fetch(apiUrl('/api/payment/request'), {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -1227,7 +1349,7 @@ async function executeMidtransPaymentRequest() {
 // Helper to auto trigger success locally
 async function triggerSimulateSuccess(merchantRef) {
     try {
-        await fetch('/api/payment/simulate-callback', {
+        await fetch(apiUrl('/api/payment/simulate-callback'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1251,7 +1373,7 @@ async function simulateWebhookCallback() {
     DOM.btnSimulatePay.innerHTML = '⏳ Memproses Callback...';
 
     try {
-        const response = await fetch('/api/payment/simulate-callback', {
+        const response = await fetch(apiUrl('/api/payment/simulate-callback'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1305,7 +1427,7 @@ async function syncUserProfile() {
     const token = getToken();
     if (!token) return;
     try {
-        const res = await fetch('/api/auth/profile', {
+        const res = await fetch(apiUrl('/api/auth/profile'), {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -1591,7 +1713,7 @@ async function handleSaveSettings() {
     DOM.btnSaveSettings.innerHTML = '⏳ Menyimpan...';
 
     try {
-        const response = await fetch('/api/auth/profile/update-markup', {
+        const response = await fetch(apiUrl('/api/auth/profile/update-markup'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1665,7 +1787,7 @@ function updateAccentSelectionUI(accent) {
 
 async function loadMidtransScript() {
     try {
-        const res = await fetch('/api/config/payment');
+        const res = await fetch(apiUrl('/api/config/payment'));
         const config = await res.json();
         
         // Sembunyikan info akun uji coba secara otomatis di mode produksi
@@ -1697,7 +1819,7 @@ let currentLandingOperator = null;
 
 async function fetchLandingPrices() {
     try {
-        const res = await fetch('/api/products');
+        const res = await fetch(apiUrl('/api/products'));
         if (res.ok) {
             landingProducts = await res.json();
             renderLandingCategoryTabs();
@@ -1822,7 +1944,7 @@ async function handleApplyVoucher() {
     
     try {
         const token = getToken();
-        const res = await fetch('/api/vouchers/validate', {
+        const res = await fetch(apiUrl('/api/vouchers/validate'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1891,10 +2013,865 @@ function updateCheckoutTotalDisplay() {
     DOM.checkoutTotal.textContent = formatRupiah(total);
 }
 
+// ==========================================
+//             ADMIN DASHBOARD FLOW
+// ==========================================
+
+// Global state variables for admin
+state.adminUsers = [];
+state.adminTransactions = [];
+state.adminVouchers = [];
+state.selectedAdminUserId = null;
+
+let adminListenersInitialized = false;
+let currentAdminTab = 'summary';
+
+async function loadAdminDashboard() {
+    initAdminListeners();
+    await switchAdminTab(currentAdminTab);
+}
+
+function initAdminListeners() {
+    if (adminListenersInitialized) return;
+    adminListenersInitialized = true;
+
+    // Subtabs click listener
+    const subtabsNav = document.getElementById('admin-subtabs-nav');
+    if (subtabsNav) {
+        subtabsNav.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-admin-tab]');
+            if (!btn) return;
+            const tabName = btn.getAttribute('data-admin-tab');
+            
+            // Toggle active classes in subtab buttons
+            subtabsNav.querySelectorAll('[data-admin-tab]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Switch subviews
+            document.querySelectorAll('.admin-subview').forEach(view => view.style.display = 'none');
+            const targetView = document.getElementById(`admin-view-${tabName}`);
+            if (targetView) targetView.style.display = 'block';
+
+            currentAdminTab = tabName;
+            switchAdminTab(tabName);
+        });
+    }
+
+    // Save adjusted balance
+    const btnAdminSaveBalance = document.getElementById('btn-admin-save-balance');
+    if (btnAdminSaveBalance) {
+        btnAdminSaveBalance.addEventListener('click', handleAdminAdjustBalance);
+    }
+
+    // Save custom markup
+    const btnAdminSaveMarkup = document.getElementById('btn-admin-save-markup');
+    if (btnAdminSaveMarkup) {
+        btnAdminSaveMarkup.addEventListener('click', handleAdminSaveMarkup);
+    }
+
+    // Create new voucher
+    const btnAdminCreateVoucher = document.getElementById('btn-admin-create-voucher');
+    if (btnAdminCreateVoucher) {
+        btnAdminCreateVoucher.addEventListener('click', handleAdminCreateVoucher);
+    }
+
+    // Global transactions search & filter
+    const trxSearch = document.getElementById('admin-trx-search');
+    if (trxSearch) {
+        trxSearch.addEventListener('input', renderAdminTransactions);
+    }
+
+    const trxFilter = document.getElementById('admin-trx-filter-status');
+    if (trxFilter) {
+        trxFilter.addEventListener('change', renderAdminTransactions);
+    }
+
+    // Save system announcement
+    const btnAdminSaveAnnouncement = document.getElementById('btn-admin-save-announcement');
+    if (btnAdminSaveAnnouncement) {
+        btnAdminSaveAnnouncement.addEventListener('click', handleAdminSaveAnnouncement);
+    }
+}
+
+async function switchAdminTab(tab) {
+    if (tab === 'summary') {
+        await loadAdminSummary();
+    } else if (tab === 'users') {
+        await loadAdminUsers();
+    } else if (tab === 'transactions') {
+        await loadAdminTransactions();
+    } else if (tab === 'vouchers') {
+        await loadAdminVouchers();
+    } else if (tab === 'deposits') {
+        await loadAdminDeposits();
+    }
+    if (window.lucide) window.lucide.createIcons();
+}
+
+async function loadAdminSummary() {
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl('/api/admin/summary'), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Forbidden');
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('admin-stat-users').textContent = data.summary.totalUsers;
+            document.getElementById('admin-stat-balance').textContent = formatRupiah(data.summary.totalBalance);
+            document.getElementById('admin-stat-digiflazz').textContent = formatRupiah(data.summary.digiflazzBalance);
+            
+            document.getElementById('admin-stat-success').textContent = data.summary.successTrxs;
+            document.getElementById('admin-stat-pending').textContent = data.summary.pendingTrxs;
+            document.getElementById('admin-stat-failed').textContent = data.summary.failedTrxs;
+
+            // Sync current announcement in admin panel
+            await fetchAnnouncement();
+        }
+    } catch (err) {
+        console.error('[Admin] Gagal memuat ringkasan:', err);
+        alert('Gagal memuat ringkasan data admin.');
+    }
+}
+
+async function loadAdminUsers() {
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl('/api/admin/users'), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Forbidden');
+        const data = await res.json();
+        
+        if (data.success) {
+            state.adminUsers = data.users;
+            document.getElementById('admin-users-count').textContent = `${data.users.length} Agen`;
+            renderAdminUsers();
+        }
+    } catch (err) {
+        console.error('[Admin] Gagal memuat daftar agen:', err);
+    }
+}
+
+function renderAdminUsers() {
+    const tbody = document.getElementById('admin-users-table-body');
+    if (!tbody) return;
+
+    if (state.adminUsers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">Belum ada agen terdaftar.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = '';
+    state.adminUsers.forEach(u => {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
+        row.innerHTML = `
+            <td style="padding: 12px 6px;">
+                <div style="font-weight: 700; color: white;">${u.name}</div>
+                <div style="font-size: 10px; color: var(--text-muted);">${u.id}</div>
+            </td>
+            <td style="padding: 12px 6px;">
+                <div>@${u.username}</div>
+                <div style="font-size: 11px; color: var(--text-muted);">${u.email}</div>
+            </td>
+            <td style="padding: 12px 6px; text-align: right; font-weight: 700; color: #10b981;">
+                ${formatRupiah(u.balance)}
+            </td>
+            <td style="padding: 12px 6px; text-align: right;">
+                +${formatRupiah(u.markupFlat)}
+            </td>
+            <td style="padding: 12px 6px; text-align: center;">
+                <span style="font-size: 10px; padding: 2px 6px; border-radius: 6px; font-weight: 700; background: ${u.isVerified ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}; color: ${u.isVerified ? '#10b981' : '#ef4444'};">
+                    ${u.isVerified ? 'Aktif' : 'Nonaktif'}
+                </span>
+            </td>
+            <td style="padding: 12px 6px; text-align: center;">
+                <div style="display: flex; gap: 6px; justify-content: center;">
+                    <button class="tab-btn btn-adj-balance" data-id="${u.id}" data-name="${u.name}" style="padding: 4px 8px; font-size: 10px; border-radius: 6px;" title="Sesuaikan Saldo">
+                        <i data-lucide="plus-circle" style="width: 12px; height: 12px; vertical-align: middle;"></i> Saldo
+                    </button>
+                    <button class="tab-btn btn-adj-markup" data-id="${u.id}" data-name="${u.name}" data-markup="${u.markupFlat}" style="padding: 4px 8px; font-size: 10px; border-radius: 6px;" title="Edit Markup">
+                        <i data-lucide="edit" style="width: 12px; height: 12px; vertical-align: middle;"></i> Profit
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // Attach actions
+    tbody.querySelectorAll('.btn-adj-balance').forEach(btn => {
+        btn.addEventListener('click', () => {
+            state.selectedAdminUserId = btn.getAttribute('data-id');
+            const name = btn.getAttribute('data-name');
+            document.getElementById('admin-balance-modal-desc').innerHTML = `Sesuaikan saldo untuk agen: <strong style="color:#38bdf8;">${name}</strong>`;
+            document.getElementById('admin-balance-amount-input').value = '';
+            document.getElementById('admin-balance-modal').classList.add('show');
+        });
+    });
+
+    tbody.querySelectorAll('.btn-adj-markup').forEach(btn => {
+        btn.addEventListener('click', () => {
+            state.selectedAdminUserId = btn.getAttribute('data-id');
+            const name = btn.getAttribute('data-name');
+            const markup = btn.getAttribute('data-markup');
+            document.getElementById('admin-markup-modal-desc').innerHTML = `Markup flat agen: <strong style="color:#38bdf8;">${name}</strong>`;
+            document.getElementById('admin-markup-amount-input').value = markup;
+            document.getElementById('admin-markup-modal').classList.add('show');
+        });
+    });
+}
+
+async function handleAdminAdjustBalance() {
+    const id = state.selectedAdminUserId;
+    const action = document.getElementById('admin-balance-action-select').value;
+    const amount = parseInt(document.getElementById('admin-balance-amount-input').value);
+
+    if (!amount || amount <= 0) {
+        alert('Masukkan jumlah nominal saldo yang valid.');
+        return;
+    }
+
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl(`/api/admin/users/${id}/balance`), {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ amount, action })
+        });
+        const result = await res.json();
+        
+        if (res.ok) {
+            alert(result.message || 'Saldo berhasil disesuaikan.');
+            document.getElementById('admin-balance-modal').classList.remove('show');
+            await loadAdminUsers();
+        } else {
+            alert('Gagal: ' + result.error);
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Gagal menyesuaikan saldo agen.');
+    }
+}
+
+async function handleAdminSaveMarkup() {
+    const id = state.selectedAdminUserId;
+    const markupFlat = parseInt(document.getElementById('admin-markup-amount-input').value);
+
+    if (isNaN(markupFlat) || markupFlat < 0) {
+        alert('Masukkan nominal markup flat keuntungan yang valid.');
+        return;
+    }
+
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl(`/api/admin/users/${id}/markup`), {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ markupFlat })
+        });
+        const result = await res.json();
+
+        if (res.ok) {
+            alert(result.message || 'Markup flat keuntungan berhasil disimpan.');
+            document.getElementById('admin-markup-modal').classList.remove('show');
+            await loadAdminUsers();
+        } else {
+            alert('Gagal: ' + result.error);
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Gagal mengubah markup agen.');
+    }
+}
+
+async function loadAdminTransactions() {
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl('/api/admin/transactions'), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Forbidden');
+        const data = await res.json();
+        
+        if (data.success) {
+            state.adminTransactions = data.transactions;
+            renderAdminTransactions();
+        }
+    } catch (err) {
+        console.error('[Admin] Gagal memuat transaksi global:', err);
+    }
+}
+
+function renderAdminTransactions() {
+    const tbody = document.getElementById('admin-trxs-table-body');
+    if (!tbody) return;
+
+    const query = document.getElementById('admin-trx-search').value.toLowerCase().trim();
+    const filter = document.getElementById('admin-trx-filter-status').value;
+
+    const filtered = state.adminTransactions.filter(t => {
+        const matchesQuery = t.id.toLowerCase().includes(query) || 
+                             t.customerNo.toLowerCase().includes(query) || 
+                             (t.user && t.user.name.toLowerCase().includes(query));
+        const matchesFilter = filter === 'ALL' || t.status === filter;
+        return matchesQuery && matchesFilter;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text-muted);">Belum ada riwayat transaksi yang cocok.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = '';
+    filtered.forEach(t => {
+        const dateStr = new Date(t.createdAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' });
+        
+        let statusBadge = '';
+        if (t.status === 'Sukses') statusBadge = '<span style="color:#10b981; font-weight:700;">SUKSES</span>';
+        else if (t.status === 'Pending') statusBadge = '<span style="color:#f59e0b; font-weight:700;">PENDING</span>';
+        else statusBadge = '<span style="color:#ef4444; font-weight:700;">GAGAL</span>';
+
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
+        row.innerHTML = `
+            <td style="padding: 10px 4px;">
+                <div style="font-weight: 700; color: white;">${t.id}</div>
+                <div style="font-size: 9px; color: var(--text-muted);">${dateStr}</div>
+            </td>
+            <td style="padding: 10px 4px;">
+                <div style="font-weight:600;">${t.user ? t.user.name : 'Unknown'}</div>
+                <div style="font-size:10px; color:var(--text-muted);">@${t.user ? t.user.username : ''}</div>
+            </td>
+            <td style="padding: 10px 4px;">
+                <div style="font-weight:600; color:white;">${t.productName}</div>
+                <div style="font-size:10px; color:#38bdf8;">${t.customerNo}</div>
+            </td>
+            <td style="padding: 10px 4px; text-align: right; font-weight: 700;">
+                ${formatRupiah(t.priceAgent)}
+            </td>
+            <td style="padding: 10px 4px; font-family: monospace; font-size: 11px;">
+                ${t.sn || '-'}
+            </td>
+            <td style="padding: 10px 4px; text-align: center;">
+                ${statusBadge}
+            </td>
+            <td style="padding: 10px 4px; text-align: center;">
+                <select class="admin-set-status-select" data-id="${t.id}" style="padding: 4px 6px; font-size: 10px; border-radius: 6px; border: 1px solid var(--card-border); background: #0a0814; color: white; cursor: pointer;">
+                    <option value="" disabled selected>Ubah...</option>
+                    <option value="Sukses">Set Sukses</option>
+                    <option value="Pending">Set Pending</option>
+                    <option value="Gagal">Set Gagal (Refund)</option>
+                </select>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // Attach set status actions
+    tbody.querySelectorAll('.admin-set-status-select').forEach(select => {
+        select.addEventListener('change', async (e) => {
+            const id = select.getAttribute('data-id');
+            const status = e.target.value;
+            if (!confirm(`Apakah Anda yakin ingin mengubah status transaksi ${id} menjadi "${status}"?`)) {
+                select.value = '';
+                return;
+            }
+
+            try {
+                const token = getToken();
+                const res = await fetch(apiUrl(`/api/admin/transactions/${id}/status`), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status })
+                });
+                const result = await res.json();
+                
+                if (res.ok) {
+                    alert(result.message || 'Status transaksi berhasil diubah.');
+                    await loadAdminTransactions();
+                } else {
+                    alert('Gagal: ' + result.error);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Gagal mengubah status transaksi.');
+            }
+        });
+    });
+}
+
+async function loadAdminVouchers() {
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl('/api/admin/vouchers'), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Forbidden');
+        const data = await res.json();
+
+        if (data.success) {
+            state.adminVouchers = data.vouchers;
+            renderAdminVouchers();
+        }
+    } catch (err) {
+        console.error('[Admin] Gagal memuat daftar voucher:', err);
+    }
+}
+
+function renderAdminVouchers() {
+    const tbody = document.getElementById('admin-vouchers-table-body');
+    if (!tbody) return;
+
+    if (state.adminVouchers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text-muted);">Belum ada voucher dibuat.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = '';
+    state.adminVouchers.forEach(v => {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
+        row.innerHTML = `
+            <td style="padding: 12px 6px; font-weight: 800; color: #c084fc;">${v.code}</td>
+            <td style="padding: 12px 6px;">${v.type === 'percent' ? v.discount + '%' : formatRupiah(v.discount)}</td>
+            <td style="padding: 12px 6px;">${v.type === 'percent' ? 'Persentase' : 'Flat Rupiah'}</td>
+            <td style="padding: 12px 6px; text-align: center;">${v.usedCount} kali</td>
+            <td style="padding: 12px 6px; text-align: center;">${v.maxUse} kali</td>
+            <td style="padding: 12px 6px; text-align: center;">
+                <span style="font-size: 10px; padding: 2px 6px; border-radius: 6px; font-weight: 700; background: ${v.isActive ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}; color: ${v.isActive ? '#10b981' : '#ef4444'};">
+                    ${v.isActive ? 'Aktif' : 'Nonaktif'}
+                </span>
+            </td>
+            <td style="padding: 12px 6px; text-align: center;">
+                <div style="display: flex; gap: 6px; justify-content: center;">
+                    <button class="tab-btn btn-toggle-voucher" data-code="${v.code}" data-active="${v.isActive}" style="padding: 4px 8px; font-size: 10px; border-radius: 6px;">
+                        ${v.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                    </button>
+                    <button class="tab-btn btn-delete-voucher" data-code="${v.code}" style="padding: 4px 8px; font-size: 10px; border-radius: 6px; background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.15); color: #ef4444;">
+                        Hapus
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // Attach voucher action listeners
+    tbody.querySelectorAll('.btn-toggle-voucher').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const code = btn.getAttribute('data-code');
+            const currentActive = btn.getAttribute('data-active') === 'true';
+            
+            try {
+                const token = getToken();
+                const res = await fetch(apiUrl(`/api/admin/vouchers/${code}`), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ isActive: !currentActive })
+                });
+
+                if (res.ok) {
+                    await loadAdminVouchers();
+                } else {
+                    alert('Gagal merubah status voucher.');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    });
+
+    tbody.querySelectorAll('.btn-delete-voucher').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const code = btn.getAttribute('data-code');
+            if (!confirm(`Apakah Anda yakin ingin menghapus kode voucher "${code}"?`)) return;
+
+            try {
+                const token = getToken();
+                const res = await fetch(apiUrl(`/api/admin/vouchers/${code}`), {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    alert('Voucher berhasil dihapus.');
+                    await loadAdminVouchers();
+                } else {
+                    alert('Gagal menghapus voucher.');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    });
+}
+
+async function handleAdminCreateVoucher() {
+    const code = document.getElementById('admin-voucher-code').value.toUpperCase().trim();
+    const discount = parseInt(document.getElementById('admin-voucher-discount').value);
+    const type = document.getElementById('admin-voucher-type').value;
+    const maxUse = parseInt(document.getElementById('admin-voucher-max-use').value || '100');
+
+    if (!code || isNaN(discount) || discount <= 0) {
+        alert('Silakan isi kode voucher dan potongan diskon yang valid.');
+        return;
+    }
+
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl('/api/admin/vouchers'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ code, discount, type, maxUse, isActive: true })
+        });
+        const result = await res.json();
+
+        if (res.ok) {
+            alert(result.message || 'Voucher baru berhasil dibuat.');
+            document.getElementById('admin-voucher-code').value = '';
+            document.getElementById('admin-voucher-discount').value = '';
+            await loadAdminVouchers();
+        } else {
+            alert('Gagal: ' + result.error);
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Gagal membuat voucher baru.');
+    }
+}
+
+async function handleAdminSaveAnnouncement() {
+    const announcement = document.getElementById('admin-announcement-input').value.trim();
+    
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl('/api/admin/announcement'), {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ announcement })
+        });
+        const result = await res.json();
+
+        if (res.ok) {
+            alert(result.message || 'Teks pengumuman berjalan berhasil diperbarui.');
+            const screenText = document.getElementById('announcement-text');
+            if (screenText) screenText.textContent = announcement;
+        } else {
+            alert('Gagal: ' + result.error);
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Gagal memperbarui pengumuman.');
+    }
+}
+
+async function fetchAnnouncement() {
+    const announcementText = document.getElementById('announcement-text');
+    if (!announcementText) return;
+
+    try {
+        const res = await fetch(apiUrl('/api/config/announcement'));
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.announcement) {
+                announcementText.textContent = data.announcement;
+                const adminInput = document.getElementById('admin-announcement-input');
+                if (adminInput) {
+                    adminInput.value = data.announcement;
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Gagal mengambil data pengumuman:', err);
+    }
+}
+
+function initPromoCarousel() {
+    const track = document.getElementById('carousel-track');
+    const dotsContainer = document.getElementById('carousel-dots');
+    if (!track || !dotsContainer) return;
+
+    const slidesCount = 3;
+    let currentSlide = 0;
+    let autoSlideInterval;
+
+    function goToSlide(index) {
+        currentSlide = index;
+        track.style.transform = `translateX(-${index * 33.333}%)`;
+        
+        const dots = dotsContainer.querySelectorAll('.carousel-dot');
+        dots.forEach((dot, idx) => {
+            if (idx === index) {
+                dot.classList.add('active');
+                dot.style.opacity = '1';
+            } else {
+                dot.classList.remove('active');
+                dot.style.opacity = '0.4';
+            }
+        });
+    }
+
+    dotsContainer.addEventListener('click', (e) => {
+        const dot = e.target.closest('.carousel-dot');
+        if (!dot) return;
+        const slideIndex = parseInt(dot.getAttribute('data-slide'));
+        goToSlide(slideIndex);
+        resetAutoSlide();
+    });
+
+    function startAutoSlide() {
+        autoSlideInterval = setInterval(() => {
+            let nextSlide = (currentSlide + 1) % slidesCount;
+            goToSlide(nextSlide);
+        }, 5000);
+    }
+
+    function resetAutoSlide() {
+        clearInterval(autoSlideInterval);
+        startAutoSlide();
+    }
+
+    startAutoSlide();
+}
+
 // Check authorization on load
 document.addEventListener('DOMContentLoaded', () => {
     applyThemeAndAccent();
     loadMidtransScript();
     setupListeners();
     checkAuth();
+    initPromoCarousel();
+    fetchAnnouncement();
 });
+
+// Helper functions for Deposit Tiket Manual
+function showTopupInstructions(deposit, bankAccounts) {
+    document.getElementById('topup-form-content').style.display = 'none';
+    document.getElementById('topup-instruction-box').style.display = 'flex';
+    document.getElementById('topup-ins-total').textContent = formatRupiah(deposit.totalAmount);
+    document.getElementById('topup-ins-bank').textContent = deposit.bankName;
+    
+    const acc = bankAccounts[deposit.bankName];
+    document.getElementById('topup-ins-acc').textContent = acc ? acc.number : '-';
+    document.getElementById('topup-ins-name').textContent = acc ? acc.owner : '-';
+    
+    const btnCancel = document.getElementById('btn-topup-cancel');
+    if (btnCancel) btnCancel.setAttribute('data-id', deposit.id);
+}
+
+async function loadActiveDeposit() {
+    try {
+        const token = getToken();
+        if (!token) return;
+        
+        const res = await fetch(apiUrl('/api/deposits/my-requests'), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        
+        const data = await res.json();
+        if (data.success) {
+            state.bankAccounts = data.bankAccounts;
+            const pending = data.deposits.find(d => d.status === 'Pending');
+            
+            const widget = document.getElementById('active-deposit-widget');
+            if (pending) {
+                state.activeDeposit = pending;
+                
+                if (widget) {
+                    document.getElementById('widget-dep-amount').textContent = formatRupiah(pending.totalAmount);
+                    document.getElementById('widget-dep-bank').textContent = pending.bankName;
+                    
+                    const btnWidgetCancel = document.getElementById('btn-widget-dep-cancel');
+                    if (btnWidgetCancel) btnWidgetCancel.setAttribute('data-id', pending.id);
+                    
+                    widget.style.display = 'block';
+                }
+            } else {
+                state.activeDeposit = null;
+                if (widget) widget.style.display = 'none';
+            }
+        }
+    } catch (err) {
+        console.error('Error loading active deposit:', err);
+    }
+}
+
+async function cancelDeposit(id) {
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl(`/api/deposits/${id}/cancel`), {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+            alert('Tiket deposit berhasil dibatalkan.');
+            closeAllModals();
+            await loadActiveDeposit();
+        } else {
+            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+        }
+    } catch (err) {
+        console.error('Cancel deposit error:', err);
+        alert('Gagal membatalkan tiket deposit.');
+    }
+}
+
+function checkAndShowActiveDepositModal() {
+    if (state.activeDeposit && state.bankAccounts) {
+        showTopupInstructions(state.activeDeposit, state.bankAccounts);
+        DOM.topupModal.classList.add('show');
+    }
+}
+
+// Admin Panel Deposit Approvals
+async function loadAdminDeposits() {
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl('/api/admin/deposits'), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Forbidden');
+        
+        const data = await res.json();
+        if (data.success) {
+            const countSpan = document.getElementById('admin-deposits-count');
+            if (countSpan) countSpan.textContent = `${data.deposits.length} Pengajuan`;
+            
+            const tbody = document.getElementById('admin-deposits-table-body');
+            if (!tbody) return;
+            
+            if (data.deposits.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">Tidak ada riwayat pengajuan deposit.</td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = data.deposits.map(d => {
+                const dateStr = new Date(d.createdAt).toLocaleString('id-ID', {
+                    dateStyle: 'short', timeStyle: 'short'
+                });
+                
+                let statusBadge = '';
+                if (d.status === 'Pending') {
+                    statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">PENDING</span>`;
+                } else if (d.status === 'Sukses') {
+                    statusBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">SUKSES</span>`;
+                } else {
+                    statusBadge = `<span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">BATAL</span>`;
+                }
+                
+                let actionBtns = '';
+                if (d.status === 'Pending') {
+                    actionBtns = `
+                        <div style="display: flex; gap: 6px; justify-content: center;">
+                            <button onclick="handleAdminApproveDeposit('${d.id}')" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i data-lucide="check" style="width: 12px; height: 12px;"></i> Setujui</button>
+                            <button onclick="handleAdminRejectDeposit('${d.id}')" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i data-lucide="x" style="width: 12px; height: 12px;"></i> Tolak</button>
+                        </div>
+                    `;
+                } else {
+                    actionBtns = `<span style="color: var(--text-muted); font-size: 11px;">Selesai</span>`;
+                }
+                
+                return `
+                    <tr style="border-bottom: 1px solid var(--card-border);">
+                        <td style="padding: 12px 8px;">
+                            <span style="font-weight: 600;">${d.id}</span><br>
+                            <span style="font-size: 11px; color: var(--text-muted);">${dateStr}</span>
+                        </td>
+                        <td style="padding: 12px 8px;">
+                            <span style="font-weight: 600; color: white;">${d.user ? d.user.name : 'Unknown'}</span><br>
+                            <span style="font-size: 11px; color: var(--text-muted);">@${d.user ? d.user.username : ''}</span>
+                        </td>
+                        <td style="padding: 12px 8px; font-weight: 700; color: #38bdf8;">${d.bankName}</td>
+                        <td style="padding: 12px 8px; text-align: right; font-weight: 800; color: white;">${formatRupiah(d.totalAmount)}</td>
+                        <td style="padding: 12px 8px; text-align: center;">${statusBadge}</td>
+                        <td style="padding: 12px 8px; text-align: center;">${actionBtns}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            if (window.lucide) window.lucide.createIcons();
+        }
+    } catch (err) {
+        console.error('[Admin] Gagal memuat daftar deposit:', err);
+    }
+}
+
+async function handleAdminApproveDeposit(id) {
+    if (!confirm('Apakah Anda yakin ingin menyetujui deposit ini? Saldo agen akan otomatis ditambahkan.')) return;
+    
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl(`/api/admin/deposits/${id}/approve`), {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+            alert(data.message || 'Deposit berhasil disetujui.');
+            await loadAdminDeposits();
+        } else {
+            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+        }
+    } catch (err) {
+        console.error('Approve deposit error:', err);
+        alert('Gagal memproses persetujuan deposit.');
+    }
+}
+
+async function handleAdminRejectDeposit(id) {
+    if (!confirm('Apakah Anda yakin ingin menolak pengajuan deposit ini?')) return;
+    
+    try {
+        const token = getToken();
+        const res = await fetch(apiUrl(`/api/admin/deposits/${id}/reject`), {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+            alert(data.message || 'Deposit berhasil ditolak.');
+            await loadAdminDeposits();
+        } else {
+            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+        }
+    } catch (err) {
+        console.error('Reject deposit error:', err);
+        alert('Gagal memproses penolakan deposit.');
+    }
+}
+
+// Expose admin actions to global window scope for inline onclick templates
+window.handleAdminApproveDeposit = handleAdminApproveDeposit;
+window.handleAdminRejectDeposit = handleAdminRejectDeposit;

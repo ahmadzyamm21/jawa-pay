@@ -42,9 +42,14 @@ db.Sequelize = Sequelize;
 db.User = require('./User')(sequelize);
 db.Transaction = require('./Transaction')(sequelize);
 db.Voucher = require('./Voucher')(sequelize);
+db.Setting = require('./Setting')(sequelize);
+db.Deposit = require('./Deposit')(sequelize);
 
 // Define associations
 db.User.hasMany(db.Transaction, { foreignKey: 'userId', as: 'transactions', onDelete: 'CASCADE' });
 db.Transaction.belongsTo(db.User, { foreignKey: 'userId', as: 'user' });
+
+db.User.hasMany(db.Deposit, { foreignKey: 'userId', as: 'deposits', onDelete: 'CASCADE' });
+db.Deposit.belongsTo(db.User, { foreignKey: 'userId', as: 'user' });
 
 module.exports = db;

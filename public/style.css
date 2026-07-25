@@ -57,9 +57,15 @@ body {
 }
 
 .app-container {
-    max-width: 520px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 16px 12px;
+    padding: 24px 20px;
+}
+
+@media (max-width: 768px) {
+    .app-container {
+        padding: 16px 12px;
+    }
 }
 
 /* Header */
@@ -152,24 +158,44 @@ header {
     box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
 }
 
-/* Main Layout Grid - Mobile-first single column */
+/* Main Layout Grid - Responsive two column on desktop */
 .main-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 24px;
+}
+
+@media (min-width: 1024px) {
+    .main-grid {
+        grid-template-columns: 1.5fr 1fr;
+        gap: 28px;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-grid {
+        gap: 16px;
+    }
 }
 
 /* Cards & Glassmorphism */
 .glass-card {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    border-radius: 16px;
-    padding: 16px;
+    border-radius: 20px;
+    padding: 24px;
     backdrop-filter: blur(16px);
     box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.3);
     position: relative;
     overflow: hidden;
     transition: var(--transition-smooth);
+}
+
+@media (max-width: 768px) {
+    .glass-card {
+        padding: 16px;
+        border-radius: 16px;
+    }
 }
 
 .glass-card::before {
