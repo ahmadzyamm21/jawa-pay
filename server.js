@@ -918,7 +918,7 @@ app.get('/api/config/announcement', async (req, res) => {
         res.json({
             success: true,
             announcement: announcement ? announcement.value : '📢 Info Layanan: Sistem pembayaran QRIS & Virtual Account Mandiri/BCA lancar jaya.',
-            contactWhatsapp: process.env.CONTACT_WHATSAPP || '6281234567890'
+            contactWhatsapp: process.env.CONTACT_WHATSAPP || '6282334708033'
         });
     } catch (err) {
         console.error('Get announcement error:', err);
