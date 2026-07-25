@@ -771,6 +771,36 @@ function setupListeners() {
         });
     }
 
+    const linkFaqSettings = document.getElementById('link-faq-settings');
+    const linkTermsSettings = document.getElementById('link-terms-settings');
+    const linkRefundSettings = document.getElementById('link-refund-settings');
+    const linkPrivacySettings = document.getElementById('link-privacy-settings');
+
+    if (linkFaqSettings && faqModal) {
+        linkFaqSettings.addEventListener('click', (e) => {
+            e.preventDefault();
+            faqModal.classList.add('show');
+        });
+    }
+    if (linkTermsSettings && termsModal) {
+        linkTermsSettings.addEventListener('click', (e) => {
+            e.preventDefault();
+            termsModal.classList.add('show');
+        });
+    }
+    if (linkRefundSettings && refundModal) {
+        linkRefundSettings.addEventListener('click', (e) => {
+            e.preventDefault();
+            refundModal.classList.add('show');
+        });
+    }
+    if (linkPrivacySettings && privacyModal) {
+        linkPrivacySettings.addEventListener('click', (e) => {
+            e.preventDefault();
+            privacyModal.classList.add('show');
+        });
+    }
+
     if (btnCloseTerms) {
         btnCloseTerms.addEventListener('click', () => {
             termsModal.classList.remove('show');
