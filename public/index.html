@@ -272,14 +272,22 @@
         <footer class="app-container" style="padding: 40px 16px 20px; border-top: 1px solid var(--card-border); font-size: 13px; color: var(--text-secondary); text-align: center;">
             <p style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Jawa Pay - Platform Distributor Pulsa & Tagihan PPOB</p>
             <p style="margin-bottom: 20px; line-height: 1.6; max-width: 600px; margin-left: auto; margin-right: auto;">
-                Jawa Pay menyediakan layanan agen pulsa elektrik termurah dan terlengkap di Indonesia dengan sistem otomatisasi pembayaran payment gateway Midtrans & interkoneksi Digiflazz.
+                Jawa Pay menyediakan layanan agen pulsa elektrik termurah dan terlengkap di Indonesia dengan sistem otomatisasi pembayaran payment gateway terintegrasi & interkoneksi Digiflazz.
             </p>
-            <div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+            <div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+                <a href="#" id="link-faq-land" style="color: var(--primary); text-decoration: none; font-weight: 600;">FAQ</a>
+                <span>•</span>
                 <a href="#" id="link-terms-land" style="color: var(--primary); text-decoration: none; font-weight: 600;">Syarat & Ketentuan</a>
+                <span>•</span>
+                <a href="#" id="link-refund-land" style="color: var(--primary); text-decoration: none; font-weight: 600;">Kebijakan Refund</a>
                 <span>•</span>
                 <a href="#" id="link-privacy-land" style="color: var(--primary); text-decoration: none; font-weight: 600;">Kebijakan Privasi</a>
                 <span>•</span>
-                <a href="mailto:ahmadzyamm21@gmail.com" style="color: var(--primary); text-decoration: none; font-weight: 600;">Hubungi Kami (Bantuan)</a>
+                <a href="#" id="link-contact-land" style="color: var(--primary); text-decoration: none; font-weight: 600;">Hubungi Kami</a>
+            </div>
+            <div style="margin-bottom: 24px; font-size: 11px; color: var(--text-muted); line-height: 1.5; background: rgba(255, 255, 255, 0.02); padding: 12px 20px; border-radius: 12px; border: 1px solid var(--card-border); max-width: 600px; margin-left: auto; margin-right: auto;">
+                <p><strong>Alamat Usaha:</strong> Jl. Raya Solo-Yogyakarta No. 12, Sleman, D.I. Yogyakarta, Indonesia</p>
+                <p><strong>Kontak:</strong> Email: ahmadzyamm21@gmail.com | WhatsApp: +62 812-3456-7890</p>
             </div>
             <p style="font-size: 11px; color: var(--text-muted);">&copy; 2026 Jawa Pay. Hak Cipta Dilindungi Undang-Undang.</p>
         </footer>
@@ -371,15 +379,19 @@
                 </div>
             </div>
             
-            <!-- Midtrans KYC & Info Compliance Section -->
-            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 12px; color: var(--text-secondary); text-align: center; line-height: 1.6;">
+            <!-- KYC & Info Compliance Section -->
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 11px; color: var(--text-secondary); text-align: center; line-height: 1.6;">
                 <p style="margin-bottom: 8px;">Jawa Pay adalah platform keagenan digital untuk pengisian pulsa, paket data, dan token PLN prabayar resmi.</p>
-                <div style="display: flex; justify-content: center; gap: 12px; margin-top: 12px;">
+                <div style="display: flex; justify-content: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+                    <a href="#" id="link-faq" style="color: var(--primary); text-decoration: none; font-weight: 500;">FAQ</a>
+                    <span>•</span>
                     <a href="#" id="link-terms" style="color: var(--primary); text-decoration: none; font-weight: 500;">Syarat & Ketentuan</a>
+                    <span>•</span>
+                    <a href="#" id="link-refund" style="color: var(--primary); text-decoration: none; font-weight: 500;">Kebijakan Refund</a>
                     <span>•</span>
                     <a href="#" id="link-privacy" style="color: var(--primary); text-decoration: none; font-weight: 500;">Kebijakan Privasi</a>
                     <span>•</span>
-                    <a href="mailto:ahmadzyamm21@gmail.com" style="color: var(--primary); text-decoration: none; font-weight: 500;">Hubungi Kami</a>
+                    <a href="#" id="link-contact" style="color: var(--primary); text-decoration: none; font-weight: 500;">Hubungi Kami</a>
                 </div>
             </div>
         </div>
@@ -1139,6 +1151,7 @@
                 <div class="input-group" style="margin-bottom: 14px;">
                     <label class="input-label">Pilih Metode Pembayaran</label>
                     <select id="topup-bank-select" class="input-field" style="cursor: pointer; padding: 10px 12px; font-size: 13px; appearance: none; background: rgba(0,0,0,0.3);">
+                        <option value="MIDTRANS">💳 Midtrans (Otomatis - VA, E-Wallet, QRIS)</option>
                         <option value="QRIS">⚡ QRIS (Otomatis - Scan & Saldo Masuk Instan)</option>
                         <option value="BCA">Bank BCA (Transfer Manual)</option>
                         <option value="MANDIRI">Bank Mandiri (Transfer Manual)</option>
@@ -1450,9 +1463,85 @@
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">1. Perlindungan Data</p>
                 <p style="margin-bottom: 12px;">Kami berkomitmen menjaga kerahasiaan data pribadi pengguna, termasuk nama, nomor telepon, username, serta data transaksi. Kami tidak akan menjual atau membagikan data Anda kepada pihak ketiga mana pun tanpa persetujuan Anda.</p>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">2. Penggunaan Data</p>
-                <p style="margin-bottom: 12px;">Data Anda kami gunakan untuk keperluan autentikasi akun, memproses transaksi digital, mempermudah pelacakan pembayaran Midtrans, serta mendukung penyelesaian kendala teknis.</p>
+                <p style="margin-bottom: 12px;">Data Anda kami gunakan untuk keperluan autentikasi akun, memproses transaksi digital, mempermudah pelacakan pembayaran, serta mendukung penyelesaian kendala teknis.</p>
                 <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">3. Keamanan</p>
                 <p style="margin-bottom: 12px;">Kami menerapkan pengamanan berstandar industri dengan teknologi hashing password satu arah untuk melindungi data autentikasi Anda dari akses yang tidak sah.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 7: FAQ -->
+    <div class="modal-overlay" id="faq-modal">
+        <div class="modal-container" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <button class="modal-close" id="btn-close-faq"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
+            <h3 class="modal-title" style="margin-bottom: 16px;">Tanya Jawab (FAQ) Jawa Pay</h3>
+            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                <p style="margin-bottom: 4px; font-weight: 700; color: white;">Q: Apa itu Jawa Pay?</p>
+                <p style="margin-bottom: 12px;">A: Jawa Pay adalah platform penyedia layanan isi ulang pulsa, kuota internet, token PLN, dan PPOB terlengkap secara otomatis dengan sistem H2H supplier terpercaya.</p>
+                
+                <p style="margin-bottom: 4px; font-weight: 700; color: white;">Q: Bagaimana cara menjadi agen Jawa Pay?</p>
+                <p style="margin-bottom: 12px;">A: Anda cukup mengeklik tombol "Daftar Jadi Agen" di halaman depan, mengisi data diri, dan memverifikasi kode OTP yang dikirim ke email Anda.</p>
+                
+                <p style="margin-bottom: 4px; font-weight: 700; color: white;">Q: Bagaimana metode pengisian saldo?</p>
+                <p style="margin-bottom: 12px;">A: Pengisian saldo deposit dapat dilakukan secara otomatis melalui scan QRIS 24 jam nonstop atau transfer bank manual (BCA, Mandiri, BRI) yang diverifikasi oleh admin.</p>
+                
+                <p style="margin-bottom: 4px; font-weight: 700; color: white;">Q: Berapa lama saldo masuk setelah pembayaran?</p>
+                <p style="margin-bottom: 12px;">A: Untuk pembayaran QRIS saldo masuk otomatis dalam 1-5 menit. Untuk transfer bank manual saldo diproses setelah admin memverifikasi mutasi bank Anda.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 8: Kebijakan Refund -->
+    <div class="modal-overlay" id="refund-modal">
+        <div class="modal-container" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <button class="modal-close" id="btn-close-refund"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
+            <h3 class="modal-title" style="margin-bottom: 16px;">Kebijakan Refund (Refund Policy)</h3>
+            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; text-align: justify;">
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">1. Transaksi Gagal</p>
+                <p style="margin-bottom: 12px;">Apabila transaksi pembelian produk digital Anda (pulsa, kuota, token) dinyatakan gagal oleh sistem kami atau server supplier, saldo akun Jawa Pay Anda akan secara otomatis dikembalikan penuh (100% refund ke saldo akun) dalam hitungan detik secara otomatis.</p>
+                
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">2. Penarikan Saldo (Withdrawal)</p>
+                <p style="margin-bottom: 12px;">Saldo yang telah didepositkan ke akun Jawa Pay tidak dapat diuangkan kembali atau ditarik ke rekening bank pribadi Anda, kecuali jika platform kami menghentikan layanannya secara permanen.</p>
+                
+                <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">3. Kesalahan Input Nomor Tujuan</p>
+                <p style="margin-bottom: 12px;">Kami tidak bertanggung jawab atas kegagalan transaksi atau salah sasaran pengisian yang disebabkan oleh kesalahan input nomor tujuan oleh agen. Transaksi yang sukses ke nomor yang salah tidak dapat di-refund.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 9: Hubungi Kami -->
+    <div class="modal-overlay" id="contact-modal">
+        <div class="modal-container" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+            <button class="modal-close" id="btn-close-contact"><i data-lucide="x" style="width: 18px; height: 18px;"></i></button>
+            <h3 class="modal-title" style="margin-bottom: 16px;">Hubungi Kami</h3>
+            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                <p style="margin-bottom: 12px;">Jika Anda memiliki kendala transaksi, pendaftaran, atau memerlukan bantuan penyesuaian bisnis, silakan hubungi tim layanan pelanggan kami melalui detail di bawah ini:</p>
+                
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 16px; border-radius: 12px; border: 1px solid var(--card-border); display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <i data-lucide="map-pin" style="width: 18px; height: 18px; color: #a855f7; flex-shrink: 0; margin-top: 2px;"></i>
+                        <div>
+                            <p style="font-weight: 700; color: white;">Alamat Kantor Usaha:</p>
+                            <p style="color: var(--text-secondary);">Jl. Raya Solo-Yogyakarta No. 12, Sleman, D.I. Yogyakarta, Indonesia</p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <i data-lucide="mail" style="width: 18px; height: 18px; color: #a855f7; flex-shrink: 0; margin-top: 2px;"></i>
+                        <div>
+                            <p style="font-weight: 700; color: white;">Email Dukungan:</p>
+                            <p><a href="mailto:ahmadzyamm21@gmail.com" style="color: #38bdf8; text-decoration: none;">ahmadzyamm21@gmail.com</a></p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <i data-lucide="message-circle" style="width: 18px; height: 18px; color: #a855f7; flex-shrink: 0; margin-top: 2px;"></i>
+                        <div>
+                            <p style="font-weight: 700; color: white;">WhatsApp Customer Service:</p>
+                            <p><a href="https://wa.me/6281234567890" id="contact-wa-link-modal" target="_blank" style="color: #38bdf8; text-decoration: none;">+62 812-3456-7890</a></p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

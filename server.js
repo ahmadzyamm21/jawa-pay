@@ -1025,6 +1025,88 @@ app.post('/api/deposits/request', authenticateToken, async (req, res) => {
     }
 });
 
+// Request Midtrans Deposit (Protected Agent)
+app.post('/api/deposits/request-midtrans', authenticateToken, async (req, res) => {
+    const { amount } = req.body;
+    const userId = req.user.id;
+
+    if (!amount || isNaN(amount) || parseInt(amount) < 10000) {
+        return res.status(400).json({ error: 'Minimal pengisian deposit adalah Rp 10.000.' });
+    }
+
+    try {
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User tidak ditemukan.' });
+        }
+
+        // Check if there is already an active pending Midtrans deposit
+        const existingPending = await Deposit.findOne({
+            where: {
+                userId: userId,
+                bankName: 'MIDTRANS',
+                status: 'Pending'
+            }
+        });
+
+        if (existingPending) {
+            existingPending.status = 'Dibatalkan';
+            await existingPending.save();
+        }
+
+        const depositId = 'DEPMID' + Date.now();
+        const totalAmount = parseInt(amount);
+
+        // Call Midtrans Snap to create a transaction
+        const parameter = {
+            transaction_details: {
+                order_id: depositId,
+                gross_amount: totalAmount
+            },
+            credit_card: {
+                secure: true
+            },
+            customer_details: {
+                first_name: user.name,
+                email: user.username + '@jawapay.my.id',
+                phone: user.phone || '081234567890'
+            },
+            item_details: [{
+                id: 'DEPOSIT',
+                price: totalAmount,
+                quantity: 1,
+                name: 'Top Up Saldo Jawa Pay'
+            }]
+        };
+
+        const transaction = await snap.createTransaction(parameter);
+        
+        // Save the pending deposit in database
+        const deposit = await Deposit.create({
+            id: depositId,
+            userId: userId,
+            bankName: 'MIDTRANS',
+            amount: totalAmount,
+            uniqueCode: 0,
+            totalAmount: totalAmount,
+            status: 'Pending',
+            qrUrl: transaction.redirect_url
+        });
+
+        console.log(`[Midtrans Deposit Request] Agen ${user.username} mengajukan deposit Midtrans ${totalAmount} (ID: ${depositId})`);
+
+        res.json({
+            success: true,
+            deposit,
+            token: transaction.token,
+            redirect_url: transaction.redirect_url
+        });
+    } catch (error) {
+        console.error('Error Midtrans Deposit Snap create:', error);
+        res.status(500).json({ error: 'Gagal memproses tiket deposit Midtrans.', message: error.message });
+    }
+});
+
 // Get agent's active pending deposits (Protected Agent)
 app.get('/api/deposits/my-requests', authenticateToken, async (req, res) => {
     try {
@@ -2061,8 +2143,8 @@ app.post('/api/payment/request', authenticateToken, async (req, res) => {
     }
 });
 
-// Webhook Callback (Fulfills transaction for mapped user)
-app.post('/api/payment/callback', async (req, res) => {
+// Webhook Callback (Fulfills transaction for mapped user or deposit)
+app.post('/api/payment/midtrans-callback', async (req, res) => {
     const payload = req.body;
 
     const orderId = payload.order_id;
@@ -2081,35 +2163,54 @@ app.post('/api/payment/callback', async (req, res) => {
     }
 
     if (isSuccess) {
-        const mapData = invoiceUserMap.get(orderId);
-        if (!mapData) return res.status(404).json({ success: false, message: 'Mapping user tidak ditemukan' });
+        // CASE 1: Deposit / Top-up
+        if (orderId && (orderId.startsWith('DEPMID') || orderId.startsWith('DEP'))) {
+            try {
+                const deposit = await Deposit.findOne({ where: { id: orderId, status: 'Pending' } });
+                if (deposit) {
+                    const user = await User.findByPk(deposit.userId);
+                    if (user) {
+                        await sequelize.transaction(async (t) => {
+                            deposit.status = 'Sukses';
+                            await deposit.save({ transaction: t });
 
-        const userId = typeof mapData === 'object' ? mapData.userId : mapData;
-        const voucherCode = typeof mapData === 'object' ? mapData.voucherCode : null;
-        const discountApplied = typeof mapData === 'object' ? mapData.discountApplied : 0;
-
-        try {
-            const user = await User.findByPk(userId);
-            if (!user) throw new Error('User tidak ditemukan di DB');
-
-            if (voucherCode) {
-                try {
-                    const voucher = await Voucher.findByPk(voucherCode);
-                    if (voucher) {
-                        voucher.usedCount += 1;
-                        await voucher.save();
+                            user.balance += deposit.totalAmount;
+                            await user.save({ transaction: t });
+                        });
+                        console.log(`[Midtrans Webhook Success] Deposit ${orderId} PAID. Saldo ${user.username} bertambah Rp ${deposit.totalAmount}`);
                     }
-                } catch (vErr) {
-                    console.error('Error incrementing voucher count in callback:', vErr);
+                }
+            } catch (err) {
+                console.error('[Midtrans Webhook Deposit Error] Gagal memproses deposit:', err.message);
+            }
+        } 
+        // CASE 2: Product Purchase (Direct Invoice)
+        else {
+            const mapData = invoiceUserMap.get(orderId);
+            if (mapData) {
+                const userId = typeof mapData === 'object' ? mapData.userId : mapData;
+                const voucherCode = typeof mapData === 'object' ? mapData.voucherCode : null;
+
+                try {
+                    const user = await User.findByPk(userId);
+                    if (user) {
+                        if (voucherCode) {
+                            try {
+                                const voucher = await Voucher.findByPk(voucherCode);
+                                if (voucher) {
+                                    voucher.usedCount += 1;
+                                    await voucher.save();
+                                }
+                            } catch (vErr) {
+                                console.error('Error incrementing voucher count in callback:', vErr);
+                            }
+                        }
+                        console.log(`[Midtrans Webhook Success] Transaksi ${orderId} lunas!`);
+                    }
+                } catch (err) {
+                    console.error('[Webhook Error] Gagal memproses data:', err.message);
                 }
             }
-
-            // Find product and SKU details
-            // Decode buyer_sku_code from item details or request mapping
-            // For webhook callback, we assume default topup/purchase fulfillment
-            console.log(`[Midtrans Webhook Success] Transaksi ${orderId} lunas!`);
-        } catch (err) {
-            console.error('[Webhook Error] Gagal memproses data:', err.message);
         }
     }
 

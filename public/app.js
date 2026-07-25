@@ -724,23 +724,53 @@ function setupListeners() {
     // Terms & Privacy modals
     const linkTerms = document.getElementById('link-terms');
     const linkPrivacy = document.getElementById('link-privacy');
+    const linkFaq = document.getElementById('link-faq');
+    const linkRefund = document.getElementById('link-refund');
+    const linkContact = document.getElementById('link-contact');
+
     const termsModal = document.getElementById('terms-modal');
     const privacyModal = document.getElementById('privacy-modal');
+    const faqModal = document.getElementById('faq-modal');
+    const refundModal = document.getElementById('refund-modal');
+    const contactModal = document.getElementById('contact-modal');
+
     const btnCloseTerms = document.getElementById('btn-close-terms');
     const btnClosePrivacy = document.getElementById('btn-close-privacy');
+    const btnCloseFaq = document.getElementById('btn-close-faq');
+    const btnCloseRefund = document.getElementById('btn-close-refund');
+    const btnCloseContact = document.getElementById('btn-close-contact');
 
-    if (linkTerms) {
+    if (linkTerms && termsModal) {
         linkTerms.addEventListener('click', (e) => {
             e.preventDefault();
             termsModal.classList.add('show');
         });
     }
-    if (linkPrivacy) {
+    if (linkPrivacy && privacyModal) {
         linkPrivacy.addEventListener('click', (e) => {
             e.preventDefault();
             privacyModal.classList.add('show');
         });
     }
+    if (linkFaq && faqModal) {
+        linkFaq.addEventListener('click', (e) => {
+            e.preventDefault();
+            faqModal.classList.add('show');
+        });
+    }
+    if (linkRefund && refundModal) {
+        linkRefund.addEventListener('click', (e) => {
+            e.preventDefault();
+            refundModal.classList.add('show');
+        });
+    }
+    if (linkContact && contactModal) {
+        linkContact.addEventListener('click', (e) => {
+            e.preventDefault();
+            contactModal.classList.add('show');
+        });
+    }
+
     if (btnCloseTerms) {
         btnCloseTerms.addEventListener('click', () => {
             termsModal.classList.remove('show');
@@ -751,7 +781,23 @@ function setupListeners() {
             privacyModal.classList.remove('show');
         });
     }
-    [termsModal, privacyModal].forEach(modal => {
+    if (btnCloseFaq) {
+        btnCloseFaq.addEventListener('click', () => {
+            faqModal.classList.remove('show');
+        });
+    }
+    if (btnCloseRefund) {
+        btnCloseRefund.addEventListener('click', () => {
+            refundModal.classList.remove('show');
+        });
+    }
+    if (btnCloseContact) {
+        btnCloseContact.addEventListener('click', () => {
+            contactModal.classList.remove('show');
+        });
+    }
+
+    [termsModal, privacyModal, faqModal, refundModal, contactModal].forEach(modal => {
         if (modal) {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
@@ -854,6 +900,62 @@ function setupListeners() {
         }
 
         const token = getToken();
+        if (bankName === 'MIDTRANS') {
+            try {
+                DOM.btnSaveTopup.textContent = 'Membuat transaksi...';
+                DOM.btnSaveTopup.disabled = true;
+
+                const res = await fetch(apiUrl('/api/deposits/request-midtrans'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ amount })
+                });
+                const data = await res.json();
+                
+                DOM.btnSaveTopup.textContent = 'Dapatkan Tiket Transfer';
+                DOM.btnSaveTopup.disabled = false;
+
+                if (res.ok && data.success) {
+                    closeAllModals();
+                    
+                    if (window.snap) {
+                        window.snap.pay(data.token, {
+                            onSuccess: async function(result) {
+                                alert('Pembayaran Berhasil! Saldo Anda akan segera bertambah.');
+                                await loadActiveDeposit();
+                            },
+                            onPending: async function(result) {
+                                alert('Transaksi Pending! Silakan selesaikan pembayaran Anda.');
+                                await loadActiveDeposit();
+                            },
+                            onError: function(result) {
+                                alert('Pembayaran Gagal!');
+                                console.error(result);
+                            },
+                            onClose: function() {
+                                alert('Anda menutup halaman pembayaran.');
+                            }
+                        });
+                    } else {
+                        alert('Gagal memuat sistem pembayaran Midtrans. Mengarahkan ke halaman pembayaran...');
+                        window.open(data.redirect_url, '_blank');
+                    }
+                    await loadActiveDeposit();
+                } else {
+                    alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+                }
+            } catch (err) {
+                console.error('Request Midtrans deposit error:', err);
+                alert('Gagal menghubungi server.');
+                DOM.btnSaveTopup.textContent = 'Dapatkan Tiket Transfer';
+                DOM.btnSaveTopup.disabled = false;
+            }
+            return;
+        }
+
         if (bankName === 'QRIS') {
             try {
                 const res = await fetch(apiUrl('/api/deposits/request-qris'), {
@@ -1203,6 +1305,10 @@ function setupListeners() {
         }
     });
 
+    const linkFaqLand = document.getElementById('link-faq-land');
+    const linkRefundLand = document.getElementById('link-refund-land');
+    const linkContactLand = document.getElementById('link-contact-land');
+
     if (linkTermsLand) {
         linkTermsLand.addEventListener('click', (e) => {
             e.preventDefault();
@@ -1216,6 +1322,30 @@ function setupListeners() {
             e.preventDefault();
             const privacyM = document.getElementById('privacy-modal');
             if (privacyM) privacyM.classList.add('show');
+        });
+    }
+
+    if (linkFaqLand) {
+        linkFaqLand.addEventListener('click', (e) => {
+            e.preventDefault();
+            const faqM = document.getElementById('faq-modal');
+            if (faqM) faqM.classList.add('show');
+        });
+    }
+
+    if (linkRefundLand) {
+        linkRefundLand.addEventListener('click', (e) => {
+            e.preventDefault();
+            const refundM = document.getElementById('refund-modal');
+            if (refundM) refundM.classList.add('show');
+        });
+    }
+
+    if (linkContactLand) {
+        linkContactLand.addEventListener('click', (e) => {
+            e.preventDefault();
+            const contactM = document.getElementById('contact-modal');
+            if (contactM) contactM.classList.add('show');
         });
     }
 
@@ -2773,6 +2903,11 @@ async function fetchAnnouncement() {
                 const waLink = document.getElementById('whatsapp-cs-link');
                 if (waLink && data.contactWhatsapp) {
                     waLink.href = `https://wa.me/${data.contactWhatsapp.replace(/\+/g, '').replace(/\s+/g, '')}`;
+                }
+                const waLinkModal = document.getElementById('contact-wa-link-modal');
+                if (waLinkModal && data.contactWhatsapp) {
+                    waLinkModal.href = `https://wa.me/${data.contactWhatsapp.replace(/\+/g, '').replace(/\s+/g, '')}`;
+                    waLinkModal.textContent = `+${data.contactWhatsapp.replace(/\+/g, '').replace(/\s+/g, '')}`;
                 }
             }
         }
