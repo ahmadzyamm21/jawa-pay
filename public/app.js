@@ -1615,116 +1615,92 @@ function showReceipt(trx) {
 let myChartInstance = null;
 
 // Update Stats summary and Chart
-function updateAnalyticsDashboard() {
-    calculateStats();
-    renderProfitChart();
-}
+async function updateAnalyticsDashboard() {
+    // 1. Calculate basic count stats locally from state.transactions
+    const successTrxs = state.transactions.filter(t => t.status === 'Sukses');
+    document.getElementById('stats-total-trx').textContent = successTrxs.length;
 
-function calculateStats() {
-    const successTrx = state.transactions.filter(t => t.status === 'Sukses');
-    
-    let totalTrxCount = successTrx.length;
-    let totalRevenue = 0;
-    let totalProfit = 0;
+    // 2. Fetch server-aggregated earnings analytics
+    const token = getToken();
+    if (!token) return;
 
-    successTrx.forEach(trx => {
-        totalRevenue += trx.priceSell;
-        totalProfit += trx.profit;
-    });
-
-    document.getElementById('stats-total-trx').textContent = totalTrxCount;
-    document.getElementById('stats-total-revenue').textContent = formatRupiah(totalRevenue);
-    document.getElementById('stats-total-profit').textContent = formatRupiah(totalProfit);
-}
-
-function renderProfitChart() {
-    const ctx = document.getElementById('profitChart');
-    if (!ctx) return;
-
-    const successTrx = [...state.transactions]
-        .filter(t => t.status === 'Sukses')
-        .reverse(); // Urutkan dari terlama ke terbaru
-
-    const labels = successTrx.map(t => t.id);
-    const dataPoints = successTrx.map(t => t.profit);
-
-    if (myChartInstance) {
-        myChartInstance.destroy();
-    }
-
-    // Default empty state in chart
-    if (successTrx.length === 0) {
-        myChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['Belum Ada Transaksi'],
-                datasets: [{
-                    label: 'Keuntungan (Rp)',
-                    data: [0],
-                    borderColor: '#6366f1',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
+    try {
+        const res = await fetch(apiUrl('/api/analytics/earnings'), {
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
         });
-        return;
-    }
-
-    // Render Neon line chart
-    myChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Keuntungan (Rp)',
-                data: dataPoints,
-                borderColor: '#818cf8',
-                backgroundColor: 'rgba(99, 102, 241, 0.15)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#a855f7',
-                pointBorderColor: '#ffffff',
-                pointHoverRadius: 7
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+            // Update Stats Cards
+            document.getElementById('stats-profit-today').textContent = formatRupiah(data.summary.today);
+            document.getElementById('stats-profit-month').textContent = formatRupiah(data.summary.month);
+            document.getElementById('stats-total-profit').textContent = formatRupiah(data.summary.total);
+            
+            // Render Neon Chart
+            const ctx = document.getElementById('profitChart');
+            if (ctx) {
+                if (myChartInstance) {
+                    myChartInstance.destroy();
                 }
-            },
-            scales: {
-                y: {
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.05)'
+                
+                myChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.chart.labels,
+                        datasets: [{
+                            label: 'Laba Bersih (Rp)',
+                            data: data.chart.data,
+                            borderColor: '#a855f7',
+                            backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#818cf8',
+                            pointBorderColor: '#ffffff',
+                            pointHoverRadius: 7
+                        }]
                     },
-                    ticks: {
-                        color: '#94a3b8',
-                        font: {
-                            family: 'Outfit'
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.05)'
+                                },
+                                ticks: {
+                                    color: '#94a3b8',
+                                    font: {
+                                        family: 'Outfit'
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: '#94a3b8',
+                                    font: {
+                                        family: 'Outfit'
+                                    }
+                                }
+                            }
                         }
                     }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        color: '#94a3b8',
-                        font: {
-                            family: 'Outfit'
-                        }
-                    }
-                }
+                });
             }
         }
-    });
+    } catch (err) {
+        console.error('Error updating analytics dashboard:', err);
+    }
 }
 
 function exportToCSV() {

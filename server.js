@@ -1255,6 +1255,102 @@ app.post('/api/downlines/register', authenticateToken, async (req, res) => {
     }
 });
 
+// Get earnings analytics summary and chart data
+app.get('/api/analytics/earnings', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { Op } = db.Sequelize;
+        
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const sevenDaysAgo = new Date(startOfToday.getTime() - 6 * 24 * 60 * 60 * 1000);
+        
+        // 1. Today's Profit
+        const todayProfit = await Transaction.sum('profit', {
+            where: {
+                userId,
+                status: 'Sukses',
+                createdAt: { [Op.gte]: startOfToday }
+            }
+        }) || 0;
+
+        // 2. This Month's Profit
+        const monthProfit = await Transaction.sum('profit', {
+            where: {
+                userId,
+                status: 'Sukses',
+                createdAt: { [Op.gte]: startOfMonth }
+            }
+        }) || 0;
+
+        // 3. Commission Profit from Downlines
+        const commissionProfit = await Transaction.sum('profit', {
+            where: {
+                userId,
+                status: 'Sukses',
+                category: 'komisi'
+            }
+        }) || 0;
+
+        // 4. Direct Sales Profit (where category is not 'komisi')
+        const salesProfit = await Transaction.sum('profit', {
+            where: {
+                userId,
+                status: 'Sukses',
+                category: { [Op.ne]: 'komisi' }
+            }
+        }) || 0;
+
+        // 5. Daily Profit for Last 7 Days (for Chart)
+        const last7DaysTrxs = await Transaction.findAll({
+            where: {
+                userId,
+                status: 'Sukses',
+                createdAt: { [Op.gte]: sevenDaysAgo }
+            },
+            attributes: ['profit', 'createdAt']
+        });
+
+        // Initialize last 7 days map
+        const dailyProfitMap = {};
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(startOfToday.getTime() - i * 24 * 60 * 60 * 1000);
+            const dateStr = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+            dailyProfitMap[dateStr] = 0;
+        }
+
+        // Aggregate daily profits
+        last7DaysTrxs.forEach(trx => {
+            const dateStr = new Date(trx.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+            if (dailyProfitMap[dateStr] !== undefined) {
+                dailyProfitMap[dateStr] += trx.profit;
+            }
+        });
+
+        const labels = Object.keys(dailyProfitMap).reverse();
+        const data = Object.values(dailyProfitMap).reverse();
+
+        res.json({
+            success: true,
+            summary: {
+                today: todayProfit,
+                month: monthProfit,
+                commission: commissionProfit,
+                sales: salesProfit,
+                total: commissionProfit + salesProfit
+            },
+            chart: {
+                labels,
+                data
+            }
+        });
+    } catch (err) {
+        console.error('Fetch earnings analytics error:', err);
+        res.status(500).json({ error: 'Gagal memuat analitik keuntungan.' });
+    }
+});
+
 // Get Product List (Prepaid Price List from Digiflazz) with Referral Markup applied dynamically
 app.get('/api/products', async (req, res) => {
     try {
