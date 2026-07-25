@@ -2407,6 +2407,167 @@ function parseDigiflazzProducts(raw) {
     return totalLoaded > 0 ? products : FALLBACK_PRODUCTS;
 }
 
+// Dedicated compliance pages for payment gateway activation (iPaymu / Tripay)
+app.get('/faq', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="id">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>FAQ - Jawa Pay</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 680px; margin: 40px auto; padding: 0 20px; background: #060412; color: #cbd5e1; }
+                h1 { color: #f59e0b; border-bottom: 2px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 30px; font-size: 28px; }
+                .qa-item { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); padding: 18px; border-radius: 14px; margin-bottom: 16px; }
+                .question { font-weight: 700; color: #ffffff; font-size: 16px; margin-bottom: 6px; }
+                .answer { font-size: 14px; color: #a0aec0; }
+                .back-btn { display: inline-block; margin-top: 24px; color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 14px; }
+                .back-btn:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <h1>Tanya Jawab (FAQ) - Jawa Pay</h1>
+            <div class="qa-item">
+                <div class="question">Q: Apa itu Jawa Pay?</div>
+                <div class="answer">A: Jawa Pay adalah platform penyedia layanan isi ulang pulsa, kuota internet, token PLN, dan PPOB terlengkap secara otomatis dengan sistem H2H supplier terpercaya.</div>
+            </div>
+            <div class="qa-item">
+                <div class="question">Q: Bagaimana cara menjadi agen Jawa Pay?</div>
+                <div class="answer">A: Anda cukup mengeklik tombol "Daftar Jadi Agen" di halaman depan, mengisi data diri, dan memverifikasi kode OTP yang dikirim ke email Anda.</div>
+            </div>
+            <div class="qa-item">
+                <div class="question">Q: Bagaimana metode pengisian saldo?</div>
+                <div class="answer">A: Pengisian saldo deposit dapat dilakukan secara otomatis melalui scan QRIS 24 jam nonstop atau transfer bank manual (BCA, Mandiri, BRI) yang diverifikasi oleh admin.</div>
+            </div>
+            <div class="qa-item">
+                <div class="question">Q: Berapa lama saldo masuk setelah pembayaran?</div>
+                <div class="answer">A: Untuk pembayaran QRIS saldo masuk otomatis dalam 1-5 menit. Untuk transfer bank manual saldo diproses setelah admin memverifikasi mutasi bank Anda.</div>
+            </div>
+            <a href="/" class="back-btn">&larr; Kembali ke Beranda</a>
+        </body>
+        </html>
+    `);
+});
+
+app.get('/refund-policy', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="id">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Kebijakan Refund - Jawa Pay</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 680px; margin: 40px auto; padding: 0 20px; background: #060412; color: #cbd5e1; }
+                h1 { color: #f59e0b; border-bottom: 2px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 30px; font-size: 28px; }
+                h2 { color: #ffffff; font-size: 18px; margin-top: 24px; margin-bottom: 10px; }
+                p { font-size: 14px; color: #a0aec0; text-align: justify; margin-bottom: 16px; }
+                .back-btn { display: inline-block; margin-top: 24px; color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 14px; }
+                .back-btn:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <h1>Kebijakan Pengembalian Dana (Refund Policy)</h1>
+            
+            <h2>1. Transaksi Gagal</h2>
+            <p>Apabila transaksi pembelian produk digital Anda (pulsa, kuota, token) dinyatakan gagal oleh sistem kami atau server supplier, saldo akun Jawa Pay Anda akan secara otomatis dikembalikan penuh (100% refund ke saldo akun) dalam hitungan detik secara otomatis.</p>
+            
+            <h2>2. Penarikan Saldo (Withdrawal)</h2>
+            <p>Saldo yang telah didepositkan ke akun Jawa Pay tidak dapat diuangkan kembali atau ditarik ke rekening bank pribadi Anda, kecuali jika platform kami menghentikan layanannya secara permanen.</p>
+            
+            <h2>3. Kesalahan Input Nomor Tujuan</h2>
+            <p>Kami tidak bertanggung jawab atas kegagalan transaksi atau salah sasaran pengisian yang disebabkan oleh kesalahan input nomor tujuan oleh agen. Transaksi yang sukses ke nomor yang salah tidak dapat di-refund.</p>
+            
+            <a href="/" class="back-btn">&larr; Kembali ke Beranda</a>
+        </body>
+        </html>
+    `);
+});
+
+app.get('/terms', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="id">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Syarat & Ketentuan - Jawa Pay</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 680px; margin: 40px auto; padding: 0 20px; background: #060412; color: #cbd5e1; }
+                h1 { color: #f59e0b; border-bottom: 2px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 30px; font-size: 28px; }
+                h2 { color: #ffffff; font-size: 18px; margin-top: 24px; margin-bottom: 10px; }
+                p { font-size: 14px; color: #a0aec0; text-align: justify; margin-bottom: 16px; }
+                .back-btn { display: inline-block; margin-top: 24px; color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 14px; }
+                .back-btn:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <h1>Syarat & Ketentuan Penggunaan</h1>
+            
+            <h2>1. Pendahuluan</h2>
+            <p>Selamat datang di Jawa Pay. Dengan menggunakan situs dan layanan kami, Anda menyetujui ketentuan penggunaan ini secara penuh. Jika Anda keberatan dengan ketentuan di halaman ini, harap tidak menggunakan platform kami.</p>
+            
+            <h2>2. Layanan Kami</h2>
+            <p>Jawa Pay menyediakan platform keagenan digital untuk pengisian pulsa, paket data internet, token listrik PLN, dan produk digital prabayar lainnya. Kami berhak mengubah harga produk sewaktu-waktu sesuai dengan penyesuaian pasar atau server mitra.</p>
+            
+            <h2>3. Akun dan Keamanan</h2>
+            <p>Anda bertanggung jawab penuh untuk menjaga kerahasiaan kata sandi akun Jawa Pay Anda. Segala penyalahgunaan akun atau transaksi yang diakibatkan kelalaian pengguna adalah tanggung jawab pribadi masing-masing.</p>
+            
+            <h2>4. Transaksi dan Pembayaran</h2>
+            <p>Pembayaran top-up saldo agen dilakukan menggunakan QRIS atau transfer bank resmi melalui sistem payment gateway terintegrasi. Semua transaksi yang sudah sukses diproses tidak dapat dibatalkan atau direfund, kecuali terbukti ada kesalahan sistem.</p>
+            
+            <a href="/" class="back-btn">&larr; Kembali ke Beranda</a>
+        </body>
+        </html>
+    `);
+});
+
+app.get('/contact', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="id">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Hubungi Kami - Jawa Pay</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 680px; margin: 40px auto; padding: 0 20px; background: #060412; color: #cbd5e1; }
+                h1 { color: #f59e0b; border-bottom: 2px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 30px; font-size: 28px; }
+                p { font-size: 15px; color: #a0aec0; margin-bottom: 20px; }
+                .contact-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 24px; border-radius: 16px; display: flex; flex-direction: column; gap: 14px; }
+                .info-item { display: flex; flex-direction: column; gap: 4px; }
+                .label { font-weight: 700; color: #ffffff; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+                .val { font-size: 16px; color: #e2e8f0; }
+                .val a { color: #38bdf8; text-decoration: none; }
+                .val a:hover { text-decoration: underline; }
+                .back-btn { display: inline-block; margin-top: 24px; color: #38bdf8; text-decoration: none; font-weight: 600; font-size: 14px; }
+                .back-btn:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <h1>Hubungi Kami</h1>
+            <p>Jika Anda memiliki kendala transaksi, pendaftaran, atau memerlukan bantuan bisnis, silakan hubungi tim kami:</p>
+            <div class="contact-card">
+                <div class="info-item">
+                    <span class="label">Alamat Kantor Usaha:</span>
+                    <span class="val">Jalan Kb Anggrek Atas No. 15, RT 01 / RW 02, Tanah Sareal, Bogor, Jawa Barat 16161</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Email Dukungan:</span>
+                    <span class="val"><a href="mailto:admin@jawapay.my.id">admin@jawapay.my.id</a></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">WhatsApp Customer Service:</span>
+                    <span class="val"><a href="https://wa.me/6282334708033" target="_blank">+62 823-3470-8033</a></span>
+                </div>
+            </div>
+            <a href="/" class="back-btn">&larr; Kembali ke Beranda</a>
+        </body>
+        </html>
+    `);
+});
+
 // Run manual migrations for SQLite to prevent table reconstruction errors
 async function runSQLiteMigrations() {
     const addColumnIfMissing = async (table, column, definition) => {
