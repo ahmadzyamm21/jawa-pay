@@ -1433,6 +1433,83 @@ app.post('/api/payment/callback/notification-reader', async (req, res) => {
     }
 });
 
+// Moota Webhook Callback (Auto Bank Transfer & Static QRIS)
+app.post('/api/payment/callback/moota', async (req, res) => {
+    const { secret } = req.query;
+    
+    // Security check
+    const mootaSecret = process.env.MOOTA_SECRET || 'jawapay_moota_secret';
+    if (secret !== mootaSecret) {
+        return res.status(401).json({ error: 'Unauthorized callback.' });
+    }
+
+    const mutations = req.body;
+    if (!mutations) {
+        return res.status(400).json({ error: 'Body is empty.' });
+    }
+
+    console.log(`[Moota Webhook] Received mutations data.`);
+
+    // Helper function to process single mutation
+    const processMutation = async (item) => {
+        // CR = Credit (uang masuk)
+        if (item.type === 'CR' || item.type === 'credit') {
+            const amount = Math.round(parseFloat(item.amount));
+            console.log(`[Moota Webhook] Uang Masuk Terdeteksi: Rp ${amount}`);
+
+            try {
+                // Find matching pending deposit
+                const deposit = await Deposit.findOne({
+                    where: {
+                        totalAmount: amount,
+                        status: 'Pending'
+                    }
+                });
+
+                if (deposit) {
+                    const user = await User.findByPk(deposit.userId);
+                    if (user) {
+                        await sequelize.transaction(async (t) => {
+                            // Lock deposit
+                            const lockedDeposit = await Deposit.findOne({
+                                where: { id: deposit.id, status: 'Pending' },
+                                transaction: t,
+                                lock: true
+                            });
+
+                            if (lockedDeposit) {
+                                lockedDeposit.status = 'Sukses';
+                                lockedDeposit.sn = 'MOOTA-' + (item.id || Date.now());
+                                await lockedDeposit.save({ transaction: t });
+
+                                user.balance += lockedDeposit.totalAmount;
+                                await user.save({ transaction: t });
+                                console.log(`[Moota Webhook] Auto-approved Deposit ${lockedDeposit.id} for ${user.username}. Balance added: Rp ${lockedDeposit.totalAmount}`);
+                            }
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('[Moota Webhook] Error processing item:', err);
+            }
+        }
+    };
+
+    try {
+        if (Array.isArray(mutations)) {
+            for (const item of mutations) {
+                await processMutation(item);
+            }
+        } else {
+            await processMutation(mutations);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Moota Webhook error:', err);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
 // Mock Webhook Callback (For local sandbox/mock testing)
 app.post('/api/payment/mock-callback', async (req, res) => {
     const { depositId } = req.body;
