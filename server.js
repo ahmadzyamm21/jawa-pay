@@ -2372,6 +2372,8 @@ function parseDigiflazzProducts(raw) {
         if (!item.buyer_product_status || !item.seller_product_status) return;
         const brand = item.brand.toLowerCase();
         const category = item.category.toLowerCase();
+        const name = item.product_name.toLowerCase();
+        const sku = item.buyer_sku_code.toLowerCase();
 
         const formatted = {
             buyer_sku_code: item.buyer_sku_code,
@@ -2381,18 +2383,39 @@ function parseDigiflazzProducts(raw) {
             desc: item.desc || 'Prepaid Product'
         };
 
+        // Comprehensive operator detection
+        const isTelkomsel = brand.includes('telkomsel') || brand.includes('simpati') || brand.includes('as') || brand.includes('by.u') || brand.includes('byu') ||
+                            name.includes('telkomsel') || name.includes('simpati') || name.includes('kartu as') || name.includes('by.u') || name.includes('byu') ||
+                            sku.includes('telkomsel') || sku.includes('tsel');
+                            
+        const isIndosat = brand.includes('indosat') || brand.includes('im3') || brand.includes('mentari') ||
+                          name.includes('indosat') || name.includes('im3') || name.includes('mentari') ||
+                          sku.includes('indosat') || sku.includes('isat');
+
+        const isXL = brand.includes('xl') || brand.includes('axis') ||
+                     name.includes('xl') || name.includes('axis') ||
+                     sku.includes('xl') || sku.includes('axis');
+
+        const isTri = brand.includes('three') || brand.includes('tri') ||
+                      name.includes('three') || name.includes('tri') ||
+                      sku.includes('three') || sku.includes('tri');
+
+        const isSmartfren = brand.includes('smartfren') ||
+                            name.includes('smartfren') ||
+                            sku.includes('smartfren') || sku.includes('sf');
+
         if (category.includes('pulsa') || category.includes('aktif') || category.includes('masa')) {
-            if (brand.includes('telkomsel') || brand.includes('simpati') || brand.includes('as') || brand.includes('by.u') || brand.includes('byu')) products.pulsa.telkomsel.push(formatted);
-            else if (brand.includes('indosat') || brand.includes('im3')) products.pulsa.indosat.push(formatted);
-            else if (brand.includes('xl') || brand.includes('axis')) products.pulsa.xl.push(formatted);
-            else if (brand.includes('three') || brand.includes('tri')) products.pulsa.tri.push(formatted);
-            else if (brand.includes('smartfren')) products.pulsa.smartfren.push(formatted);
+            if (isTelkomsel) products.pulsa.telkomsel.push(formatted);
+            else if (isIndosat) products.pulsa.indosat.push(formatted);
+            else if (isXL) products.pulsa.xl.push(formatted);
+            else if (isTri) products.pulsa.tri.push(formatted);
+            else if (isSmartfren) products.pulsa.smartfren.push(formatted);
         } else if (category.includes('data') || category.includes('paket') || category.includes('internet') || category.includes('kuota')) {
-            if (brand.includes('telkomsel') || brand.includes('simpati') || brand.includes('as') || brand.includes('by.u') || brand.includes('byu')) products.data.telkomsel.push(formatted);
-            else if (brand.includes('indosat') || brand.includes('im3')) products.data.indosat.push(formatted);
-            else if (brand.includes('xl') || brand.includes('axis')) products.data.xl.push(formatted);
-            else if (brand.includes('three') || brand.includes('tri')) products.data.tri.push(formatted);
-            else if (brand.includes('smartfren')) products.data.smartfren.push(formatted);
+            if (isTelkomsel) products.data.telkomsel.push(formatted);
+            else if (isIndosat) products.data.indosat.push(formatted);
+            else if (isXL) products.data.xl.push(formatted);
+            else if (isTri) products.data.tri.push(formatted);
+            else if (isSmartfren) products.data.smartfren.push(formatted);
         } else if (category.includes('pln') || brand.includes('pln')) {
             products.pln.global.push(formatted);
         } else if (category.includes('e-money') || category.includes('emoney') || category.includes('game')) {
