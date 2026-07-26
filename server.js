@@ -253,7 +253,7 @@ async function sendOtpEmail(email, name, otpCode) {
     };
 
     const createTransporter = (port, secure) => nodemailer.createTransport({
-        host: 'smtp.gmail.com',
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
         port: port,
         secure: secure,
         auth: {
