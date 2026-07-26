@@ -456,11 +456,13 @@ app.post('/api/auth/register', async (req, res) => {
             console.error('[Email OTP Error] Gagal mengirim OTP email:', mailErr.message || mailErr);
         });
 
+        const showDebugOtp = !process.env.EMAIL_USER || !process.env.EMAIL_PASS || process.env.DEBUG_OTP === 'true';
+
         res.json({
             success: true,
             requireOtp: true,
             email: email.toLowerCase(),
-            debugOtp: otpCode,
+            ...(showDebugOtp ? { debugOtp: otpCode } : {}),
             message: 'Registrasi berhasil! Kode OTP 6-digit telah dikirim ke email Anda.'
         });
     } catch (err) {
@@ -556,9 +558,11 @@ app.post('/api/auth/resend-otp', async (req, res) => {
             console.error('[Email OTP Error] Resend failed:', mailErr.message || mailErr);
         });
 
+        const showDebugOtp = !process.env.EMAIL_USER || !process.env.EMAIL_PASS || process.env.DEBUG_OTP === 'true';
+
         res.json({
             success: true,
-            debugOtp: newOtpCode,
+            ...(showDebugOtp ? { debugOtp: newOtpCode } : {}),
             message: 'Kode OTP 6-digit baru telah dikirimkan ke email Anda.'
         });
     } catch (err) {
