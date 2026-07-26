@@ -61,8 +61,6 @@ const FALLBACK_PRODUCTS = {
             { buyer_sku_code: 'telkomsel25k', name: 'Pulsa Telkomsel 25.000', priceAgent: 24850, priceSell: 27000, desc: 'Masa aktif 30 hari' },
             { buyer_sku_code: 'telkomsel50k', name: 'Pulsa Telkomsel 50.000', priceAgent: 49100, priceSell: 52000, desc: 'Masa aktif 45 hari' },
             { buyer_sku_code: 'telkomsel100k', name: 'Pulsa Telkomsel 100.000', priceAgent: 97500, priceSell: 102000, desc: 'Masa aktif 60 hari' },
-            { buyer_sku_code: 'tsel_aktif5', name: 'Telkomsel Masa Aktif 5 Hari', priceAgent: 2000, priceSell: 3500, desc: 'Menambah masa aktif kartu Telkomsel sebanyak 5 hari' },
-            { buyer_sku_code: 'tsel_aktif30', name: 'Telkomsel Masa Aktif 30 Hari', priceAgent: 12000, priceSell: 15000, desc: 'Menambah masa aktif kartu Telkomsel sebanyak 30 hari' },
         ],
         indosat: [
             { buyer_sku_code: 'indosat5k', name: 'Pulsa Indosat 5.000', priceAgent: 5400, priceSell: 7000, desc: 'Masa aktif 7 hari' },
@@ -79,7 +77,6 @@ const FALLBACK_PRODUCTS = {
             { buyer_sku_code: 'xl25k', name: 'Pulsa XL 25.000', priceAgent: 24950, priceSell: 27000, desc: 'Masa aktif 30 hari' },
             { buyer_sku_code: 'xl50k', name: 'Pulsa XL 50.000', priceAgent: 49300, priceSell: 52000, desc: 'Masa aktif 45 hari' },
             { buyer_sku_code: 'xl100k', name: 'Pulsa XL 100.000', priceAgent: 98000, priceSell: 102000, desc: 'Masa aktif 60 hari' },
-            { buyer_sku_code: 'xl_aktif30', name: 'XL Masa Aktif 30 Hari', priceAgent: 10000, priceSell: 13000, desc: 'Menambah masa aktif kartu XL Axiata sebanyak 30 hari' },
         ],
         tri: [
             { buyer_sku_code: 'tri5k', name: 'Pulsa Tri 5.000', priceAgent: 5200, priceSell: 7000, desc: 'Masa aktif 7 hari' },
@@ -180,6 +177,18 @@ const FALLBACK_PRODUCTS = {
             { buyer_sku_code: 'pubg60', name: 'PUBG 60 UC', priceAgent: 14000, priceSell: 17000, desc: 'PUBG Mobile Unknown Cash' },
             { buyer_sku_code: 'pubg325', name: 'PUBG 325 UC', priceAgent: 69000, priceSell: 76000, desc: 'PUBG Mobile Unknown Cash' },
         ]
+    },
+    aktif: {
+        telkomsel: [
+            { buyer_sku_code: 'tsel_aktif5', name: 'Telkomsel Masa Aktif 5 Hari', priceAgent: 2000, priceSell: 3500, desc: 'Menambah masa aktif kartu Telkomsel sebanyak 5 hari' },
+            { buyer_sku_code: 'tsel_aktif30', name: 'Telkomsel Masa Aktif 30 Hari', priceAgent: 12000, priceSell: 15000, desc: 'Menambah masa aktif kartu Telkomsel sebanyak 30 hari' },
+        ],
+        xl: [
+            { buyer_sku_code: 'xl_aktif30', name: 'XL Masa Aktif 30 Hari', priceAgent: 10000, priceSell: 13000, desc: 'Menambah masa aktif kartu XL Axiata sebanyak 30 hari' },
+        ],
+        indosat: [],
+        tri: [],
+        smartfren: []
     }
 };
 
@@ -2363,6 +2372,7 @@ function parseDigiflazzProducts(raw) {
     const products = {
         pulsa: { telkomsel: [], indosat: [], xl: [], tri: [], smartfren: [] },
         data: { telkomsel: [], indosat: [], xl: [], tri: [], smartfren: [] },
+        aktif: { telkomsel: [], indosat: [], xl: [], tri: [], smartfren: [] },
         pln: { global: [] },
         emoney: { gopay: [], ovo: [], dana: [], shopeepay: [] },
         game: { mlbb: [], ff: [], pubg: [] }
@@ -2404,7 +2414,13 @@ function parseDigiflazzProducts(raw) {
                             name.includes('smartfren') ||
                             sku.includes('smartfren') || sku.includes('sf');
 
-        if (category.includes('pulsa') || category.includes('aktif') || category.includes('masa')) {
+        if (category.includes('aktif') || category.includes('masa')) {
+            if (isTelkomsel) products.aktif.telkomsel.push(formatted);
+            else if (isIndosat) products.aktif.indosat.push(formatted);
+            else if (isXL) products.aktif.xl.push(formatted);
+            else if (isTri) products.aktif.tri.push(formatted);
+            else if (isSmartfren) products.aktif.smartfren.push(formatted);
+        } else if (category.includes('pulsa')) {
             if (isTelkomsel) products.pulsa.telkomsel.push(formatted);
             else if (isIndosat) products.pulsa.indosat.push(formatted);
             else if (isXL) products.pulsa.xl.push(formatted);

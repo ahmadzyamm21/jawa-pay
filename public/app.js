@@ -585,7 +585,7 @@ function renderProducts() {
     let productsToShow = [];
     const cat = state.selectedCategory;
 
-    if (cat === 'pulsa' || cat === 'data') {
+    if (cat === 'pulsa' || cat === 'data' || cat === 'aktif') {
         if (state.detectedOperator) {
             productsToShow = state.products[cat][state.detectedOperator] || [];
         }
@@ -851,7 +851,7 @@ function setupListeners() {
             DOM.operatorBadge.textContent = '';
             
             DOM.subCategoryWrapper.style.display = 'none';
-            if (category === 'pulsa' || category === 'data') {
+            if (category === 'pulsa' || category === 'data' || category === 'aktif') {
                 DOM.inputLabel.textContent = 'Nomor Handphone Tujuan';
                 DOM.targetInput.placeholder = 'Contoh: 081234567890';
                 DOM.targetInput.type = 'tel';
@@ -1412,7 +1412,7 @@ function handleNumberInput(val) {
         DOM.checkoutCardTarget.textContent = val || '-';
     }
 
-    if (state.selectedCategory === 'pulsa' || state.selectedCategory === 'data') {
+    if (state.selectedCategory === 'pulsa' || state.selectedCategory === 'data' || state.selectedCategory === 'aktif') {
         const op = detectOperator(val);
         if (op !== state.detectedOperator) {
             state.detectedOperator = op;
