@@ -1212,24 +1212,39 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
         const totalAmount = parseInt(amount);
 
         if (isTripayMock()) {
-            // Mock Mode
-            const mockQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=JawaPayMockQRIS_${depositId}_${totalAmount}`;
+            // Static QRIS Mode (Using unique code)
+            let uniqueCode = Math.floor(10 + Math.random() * 90); // 2 digit unique code (10 - 99)
+            let finalAmount = parseInt(amount) + uniqueCode;
+            
+            // Ensure uniqueness
+            let retries = 0;
+            while (retries < 15) {
+                const duplicate = await Deposit.findOne({
+                    where: { totalAmount: finalAmount, status: 'Pending' }
+                });
+                if (!duplicate) break;
+                uniqueCode = Math.floor(10 + Math.random() * 90);
+                finalAmount = parseInt(amount) + uniqueCode;
+                retries++;
+            }
+
+            const staticQrUrl = process.env.STATIC_QRIS_URL || '/qris_static.png';
             const deposit = await Deposit.create({
                 id: depositId,
                 userId: userId,
                 bankName: 'QRIS',
-                amount: totalAmount,
-                uniqueCode: 0,
-                totalAmount: totalAmount,
+                amount: parseInt(amount),
+                uniqueCode: uniqueCode,
+                totalAmount: finalAmount,
                 status: 'Pending',
-                qrUrl: mockQrUrl
+                qrUrl: staticQrUrl
             });
 
-            console.log(`[QRIS Request - Mock] Agen ${user.username} mengajukan deposit QRIS ${totalAmount} (ID: ${depositId})`);
+            console.log(`[QRIS Request - Static] Agen ${user.username} mengajukan deposit QRIS ${finalAmount} (ID: ${depositId})`);
             return res.json({
                 success: true,
                 deposit,
-                isMock: true
+                isMock: false // Return false so client treats it as static QRIS instructions
             });
         }
 
@@ -1329,6 +1344,92 @@ app.post('/api/payment/callback', async (req, res) => {
     } catch (err) {
         console.error('Tripay Callback error:', err);
         res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
+// Custom Notification Reader Webhook (For Auto QRIS via Android Notification App)
+app.post('/api/payment/callback/notification-reader', async (req, res) => {
+    const { title, body, secret } = req.body;
+    
+    // Security check
+    const notificationSecret = process.env.NOTIFICATION_SECRET || 'jawapay_secret_token';
+    if (secret !== notificationSecret) {
+        return res.status(401).json({ error: 'Unauthorized callback.' });
+    }
+
+    if (!body) {
+        return res.status(400).json({ error: 'Body is empty.' });
+    }
+
+    console.log(`[Notification Callback] Title: "${title}", Body: "${body}"`);
+
+    try {
+        const cleanedBody = body.replace(/\s/g, '').toLowerCase();
+        
+        // Match numbers in format RpXX.XXX or RpXXXXX
+        let amount = null;
+        const rpMatch = cleanedBody.match(/rp([0-9.,]+)/);
+        if (rpMatch) {
+            const numStr = rpMatch[1].replace(/[.,]/g, '');
+            amount = parseInt(numStr);
+        } else {
+            // Fallback: look for any number sequence
+            const fallbackMatch = cleanedBody.match(/([0-9.,]+)/);
+            if (fallbackMatch) {
+                const numStr = fallbackMatch[1].replace(/[.,]/g, '');
+                amount = parseInt(numStr);
+            }
+        }
+
+        if (!amount || isNaN(amount)) {
+            console.log('[Notification Callback] Could not extract valid amount.');
+            return res.json({ success: false, message: 'Could not extract amount.' });
+        }
+
+        console.log(`[Notification Callback] Extracted Amount: Rp ${amount}`);
+
+        // Find the pending deposit matching the exact totalAmount
+        const deposit = await Deposit.findOne({
+            where: {
+                totalAmount: amount,
+                status: 'Pending'
+            }
+        });
+
+        if (!deposit) {
+            console.log(`[Notification Callback] No pending deposit found matching amount Rp ${amount}`);
+            return res.json({ success: false, message: 'No matching pending deposit.' });
+        }
+
+        const user = await User.findByPk(deposit.userId);
+        if (!user) {
+            console.log('[Notification Callback] Associated user not found.');
+            return res.json({ success: false, message: 'User not found.' });
+        }
+
+        // Process deposit success
+        await sequelize.transaction(async (t) => {
+            const lockedDeposit = await Deposit.findOne({
+                where: { id: deposit.id, status: 'Pending' },
+                transaction: t,
+                lock: true
+            });
+
+            if (lockedDeposit) {
+                lockedDeposit.status = 'Sukses';
+                lockedDeposit.sn = 'AUTO-NOTIF-' + Date.now();
+                await lockedDeposit.save({ transaction: t });
+
+                user.balance += lockedDeposit.totalAmount;
+                await user.save({ transaction: t });
+                console.log(`[Notification Callback] Auto-approved Deposit ${lockedDeposit.id} for ${user.username}. Balance added: Rp ${lockedDeposit.totalAmount}`);
+            }
+        });
+
+        return res.json({ success: true, message: 'Deposit processed successfully.' });
+    } catch (err) {
+        console.error('Error processing notification callback:', err);
+        return res.status(500).json({ error: 'Internal server error.' });
     }
 });
 
