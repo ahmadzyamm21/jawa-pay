@@ -189,6 +189,16 @@ const FALLBACK_PRODUCTS = {
         indosat: [],
         tri: [],
         smartfren: []
+    },
+    tv: {
+        kvision: [
+            { buyer_sku_code: 'kvision50', name: 'K-Vision Rp 50.000', priceAgent: 48500, priceSell: 51000, desc: 'Voucher Fisik / Elektrik K-Vision' },
+            { buyer_sku_code: 'kvision100', name: 'K-Vision Rp 100.000', priceAgent: 97000, priceSell: 101000, desc: 'Voucher Fisik / Elektrik K-Vision' },
+        ],
+        nexparabola: [
+            { buyer_sku_code: 'nex50', name: 'Nex Parabola Rp 50.000', priceAgent: 49000, priceSell: 51500, desc: 'Paket Nex Parabola' },
+            { buyer_sku_code: 'nex100', name: 'Nex Parabola Rp 100.000', priceAgent: 98000, priceSell: 102000, desc: 'Paket Nex Parabola' },
+        ]
     }
 };
 
@@ -2375,7 +2385,8 @@ function parseDigiflazzProducts(raw) {
         aktif: { telkomsel: [], indosat: [], xl: [], tri: [], smartfren: [] },
         pln: { global: [] },
         emoney: { gopay: [], ovo: [], dana: [], shopeepay: [] },
-        game: { mlbb: [], ff: [], pubg: [] }
+        game: { mlbb: [], ff: [], pubg: [] },
+        tv: { kvision: [], nexparabola: [] }
     };
 
     raw.forEach(item => {
@@ -2442,6 +2453,9 @@ function parseDigiflazzProducts(raw) {
             else if (brand.includes('mobile legend') || brand.includes('mlbb')) products.game.mlbb.push(formatted);
             else if (brand.includes('free fire')) products.game.ff.push(formatted);
             else if (brand.includes('pubg')) products.game.pubg.push(formatted);
+        } else if (category.includes('tv') || category.includes('parabola') || category.includes('aktif-tv')) {
+            if (brand.includes('k-vision') || brand.includes('kvision')) products.tv.kvision.push(formatted);
+            else if (brand.includes('nex') || brand.includes('parabola')) products.tv.nexparabola.push(formatted);
         }
     });
 

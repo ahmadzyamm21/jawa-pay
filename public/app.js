@@ -591,7 +591,7 @@ function renderProducts() {
         }
     } else if (cat === 'pln') {
         productsToShow = state.products.pln.global || [];
-    } else if (cat === 'emoney' || cat === 'game') {
+    } else if (cat === 'emoney' || cat === 'game' || cat === 'tv') {
         const sub = state.subCategory;
         if (sub && state.products[cat] && state.products[cat][sub]) {
             productsToShow = state.products[cat][sub];
@@ -603,6 +603,7 @@ function renderProducts() {
         if (cat === 'pln') msg = 'Silakan masukkan No. Meteran / ID Pelanggan';
         if (cat === 'emoney') msg = 'Pilih jenis E-Wallet terlebih dahulu';
         if (cat === 'game') msg = 'Pilih jenis Game terlebih dahulu';
+        if (cat === 'tv') msg = 'Pilih jenis TV terlebih dahulu';
 
         DOM.productsGrid.innerHTML = `
             <div class="empty-state" style="grid-column: 1 / -1;">
@@ -873,6 +874,11 @@ function setupListeners() {
                 DOM.targetInput.placeholder = 'Contoh: 12345678 (2045)';
                 DOM.targetInput.type = 'text';
                 setupSubCategorySelect('game');
+            } else if (category === 'tv') {
+                DOM.inputLabel.textContent = 'Nomor Pelanggan / ID TV';
+                DOM.targetInput.placeholder = 'Contoh: 80041234567';
+                DOM.targetInput.type = 'number';
+                setupSubCategorySelect('tv');
             }
 
             renderProducts();
@@ -1386,20 +1392,27 @@ function setupListeners() {
 
 function setupSubCategorySelect(type) {
     DOM.subCategorySelect.innerHTML = '<option value="">-- Pilih --</option>';
-    DOM.subCategoryLabel.textContent = type === 'emoney' ? 'Jenis E-Wallet' : 'Pilih Game';
     
     if (type === 'emoney') {
+        DOM.subCategoryLabel.textContent = 'Jenis E-Wallet';
         DOM.subCategorySelect.innerHTML += `
             <option value="gopay">GoPay</option>
             <option value="ovo">OVO</option>
             <option value="dana">DANA</option>
             <option value="shopeepay">ShopeePay</option>
         `;
-    } else {
+    } else if (type === 'game') {
+        DOM.subCategoryLabel.textContent = 'Pilih Game';
         DOM.subCategorySelect.innerHTML += `
             <option value="mlbb">Mobile Legends</option>
             <option value="ff">Free Fire</option>
             <option value="pubg">PUBG Mobile</option>
+        `;
+    } else if (type === 'tv') {
+        DOM.subCategoryLabel.textContent = 'Pilih Provider TV';
+        DOM.subCategorySelect.innerHTML += `
+            <option value="kvision">K-Vision</option>
+            <option value="nexparabola">Nex Parabola</option>
         `;
     }
     DOM.subCategoryWrapper.style.display = 'block';
