@@ -1510,6 +1510,53 @@ app.post('/api/payment/callback/moota', async (req, res) => {
     }
 });
 
+// Qrisify Webhook Callback
+app.post('/api/payment/callback/qrisify', async (req, res) => {
+    const { secret } = req.query;
+    const qrisifySecret = process.env.QRISIFY_SECRET || 'jawapay_qrisify_secret';
+    
+    if (secret && secret !== qrisifySecret) {
+        return res.status(401).json({ error: 'Unauthorized callback.' });
+    }
+
+    const payload = req.body;
+    console.log('[Qrisify Callback] Payload:', JSON.stringify(payload));
+
+    const orderId = payload.merchant_ref || payload.order_id || payload.ref_id || payload.unique_code;
+    const status = payload.status || payload.transaction_status;
+
+    if (!orderId) {
+        return res.status(400).json({ error: 'Order ID is missing.' });
+    }
+
+    const isSuccess = ['success', 'paid', 'sukses', 'success_payment', 'settlement'].includes(String(status).toLowerCase());
+
+    if (isSuccess) {
+        try {
+            const deposit = await Deposit.findOne({ where: { id: orderId, status: 'Pending' } });
+            if (deposit) {
+                const user = await User.findByPk(deposit.userId);
+                if (user) {
+                    await sequelize.transaction(async (t) => {
+                        deposit.status = 'Sukses';
+                        deposit.sn = 'QRISIFY-' + (payload.trx_id || payload.reference || Date.now());
+                        await deposit.save({ transaction: t });
+
+                        user.balance += deposit.totalAmount;
+                        await user.save({ transaction: t });
+                    });
+                    console.log(`[Qrisify Callback] Deposit ${orderId} SUCCESS. Saldo ${user.username} bertambah Rp ${deposit.totalAmount}`);
+                }
+            }
+        } catch (err) {
+            console.error('Error processing Qrisify callback:', err);
+            return res.status(500).json({ error: 'Internal server error.' });
+        }
+    }
+
+    res.json({ success: true });
+});
+
 // Mock Webhook Callback (For local sandbox/mock testing)
 app.post('/api/payment/mock-callback', async (req, res) => {
     const { depositId } = req.body;
