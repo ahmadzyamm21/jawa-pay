@@ -600,14 +600,25 @@ function renderProducts() {
 
     if (productsToShow.length === 0) {
         let msg = 'Silakan masukkan nomor HP tujuan terlebih dahulu';
-        if (cat === 'pln') msg = 'Silakan masukkan No. Meteran / ID Pelanggan';
-        if (cat === 'emoney') msg = 'Pilih jenis E-Wallet terlebih dahulu';
-        if (cat === 'game') msg = 'Pilih jenis Game terlebih dahulu';
-        if (cat === 'tv') msg = 'Pilih jenis TV terlebih dahulu';
+        const hasInput = state.targetNumber && state.targetNumber.length >= 4;
+        
+        if (hasInput) {
+            msg = 'Produk tidak tersedia untuk operator ini saat ini.';
+        }
+        
+        if (cat === 'pln') {
+            msg = hasInput ? 'Produk Token PLN tidak tersedia atau sedang gangguan.' : 'Silakan masukkan No. Meteran / ID Pelanggan';
+        } else if (cat === 'emoney') {
+            msg = state.subCategory ? 'Produk E-Wallet tidak tersedia untuk provider ini.' : 'Pilih jenis E-Wallet terlebih dahulu';
+        } else if (cat === 'game') {
+            msg = state.subCategory ? 'Produk Game tidak tersedia untuk jenis ini.' : 'Pilih jenis Game terlebih dahulu';
+        } else if (cat === 'tv') {
+            msg = state.subCategory ? 'Produk TV tidak tersedia untuk provider ini.' : 'Pilih jenis TV terlebih dahulu';
+        }
 
         DOM.productsGrid.innerHTML = `
             <div class="empty-state" style="grid-column: 1 / -1;">
-                <div class="empty-icon">📱</div>
+                <div class="empty-icon">${hasInput || state.subCategory ? '⚠️' : '📱'}</div>
                 <p>${msg}</p>
             </div>
         `;
