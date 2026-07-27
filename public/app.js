@@ -1099,10 +1099,12 @@ function setupListeners() {
         processPayment();
     });
 
-    DOM.btnSimulatePay.addEventListener('click', () => {
-        const depositId = DOM.btnSimulatePay.getAttribute('data-id');
-        simulateQrisDepositSuccess(depositId);
-    });
+    if (DOM.btnSimulatePay) {
+        DOM.btnSimulatePay.addEventListener('click', () => {
+            const depositId = DOM.btnSimulatePay.getAttribute('data-id');
+            simulateQrisDepositSuccess(depositId);
+        });
+    }
 
     DOM.btnCloseReceipt.addEventListener('click', () => {
         DOM.receiptModal.classList.remove('show');
