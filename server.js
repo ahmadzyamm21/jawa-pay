@@ -805,6 +805,28 @@ app.put('/api/admin/users/:id/markup', authenticateAdmin, async (req, res) => {
     }
 });
 
+// Delete user (Protected Admin)
+app.delete('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
+    const targetUserId = req.params.id;
+
+    if (targetUserId === req.user.id) {
+        return res.status(400).json({ error: 'Anda tidak bisa menghapus akun admin Anda sendiri.' });
+    }
+
+    try {
+        const user = await User.findByPk(targetUserId);
+        if (!user) return res.status(404).json({ error: 'Agen tidak ditemukan.' });
+
+        await user.destroy();
+        console.log(`[Admin Delete User] Admin (${req.user.username}) menghapus akun ${user.username} (${user.name})`);
+
+        res.json({ success: true, message: 'Akun agen berhasil dihapus permanen.' });
+    } catch (err) {
+        console.error('Admin delete user error:', err);
+        res.status(500).json({ error: 'Gagal menghapus akun agen.' });
+    }
+});
+
 // Get global transactions history
 app.get('/api/admin/transactions', authenticateAdmin, async (req, res) => {
     try {

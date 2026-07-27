@@ -2457,6 +2457,9 @@ function renderAdminUsers() {
                     <button class="tab-btn btn-adj-markup" data-id="${u.id}" data-name="${u.name}" data-markup="${u.markupFlat}" style="padding: 4px 8px; font-size: 10px; border-radius: 6px;" title="Edit Markup">
                         <i data-lucide="edit" style="width: 12px; height: 12px; vertical-align: middle;"></i> Profit
                     </button>
+                    <button class="tab-btn btn-delete-user" data-id="${u.id}" data-name="${u.name}" style="padding: 4px 8px; font-size: 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444;" title="Hapus Agen">
+                        <i data-lucide="trash-2" style="width: 12px; height: 12px; vertical-align: middle;"></i> Hapus
+                    </button>
                 </div>
             </td>
         `;
@@ -2482,6 +2485,32 @@ function renderAdminUsers() {
             document.getElementById('admin-markup-modal-desc').innerHTML = `Markup flat agen: <strong style="color:#38bdf8;">${name}</strong>`;
             document.getElementById('admin-markup-amount-input').value = markup;
             document.getElementById('admin-markup-modal').classList.add('show');
+        });
+    });
+
+    tbody.querySelectorAll('.btn-delete-user').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            const name = btn.getAttribute('data-name');
+            if (confirm(`Apakah Anda yakin ingin menghapus akun agen "${name}" (${id}) secara permanen?\nTindakan ini tidak bisa dibatalkan.`)) {
+                try {
+                    const token = getToken();
+                    const res = await fetch(apiUrl(`/api/admin/users/${id}`), {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        alert(data.message || 'Agen berhasil dihapus.');
+                        await loadAdminUsers(); // Refresh the list
+                    } else {
+                        alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+                    }
+                } catch (err) {
+                    console.error('Delete user error:', err);
+                    alert('Gagal menghubungi server.');
+                }
+            }
         });
     });
 }
