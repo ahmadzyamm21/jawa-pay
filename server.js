@@ -1188,6 +1188,37 @@ const TRIPAY_API_URL = process.env.TRIPAY_API_URL || 'https://tripay.co.id/api-s
 
 const isTripayMock = () => !TRIPAY_API_KEY || !TRIPAY_PRIVATE_KEY || !TRIPAY_MERCHANT_CODE;
 
+// EMVCo QRIS CCITT-FALSE CRC16 Helper
+function calculateQrisCrc16(str) {
+    let crc = 0xFFFF;
+    for (let i = 0; i < str.length; i++) {
+        let x = ((crc >> 8) ^ str.charCodeAt(i)) & 0xFF;
+        x ^= x >> 4;
+        crc = ((crc << 8) ^ (x << 12) ^ (x << 5) ^ x) & 0xFFFF;
+    }
+    return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+// Convert Static QRIS data to Dynamic QRIS containing the amount
+function makeDynamicQris(staticQris, amount) {
+    let base = staticQris.slice(0, -8);
+    const amountStr = amount.toString();
+    const lenStr = amountStr.length.toString().padStart(2, '0');
+    const amountTag = `54${lenStr}${amountStr}`;
+    
+    const tag53Idx = base.indexOf('5303360');
+    if (tag53Idx !== -1) {
+        const insertPos = tag53Idx + '5303360'.length;
+        base = base.slice(0, insertPos) + amountTag + base.slice(insertPos);
+    } else {
+        base = base + amountTag;
+    }
+    
+    base = base + "6304";
+    const checksum = calculateQrisCrc16(base);
+    return base + checksum;
+}
+
 // Request dynamic QRIS Deposit Ticket (Protected Agent)
 app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
     const { amount } = req.body;
@@ -1232,7 +1263,12 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
                 retries++;
             }
 
-            const staticQrUrl = process.env.STATIC_QRIS_URL || '/qris_static.png';
+            const staticQrisData = process.env.STATIC_QRIS_DATA || '00020101021126610014COM.GO-JEK.WWW01189360091436185850360210G6185850360303UMI51440014ID.CO.QRIS.WWW0215ID10265560348450303UMI5204481453033605802ID5924Jawapay, Pulsa & Tagihan6005BOGOR61051616262070703A0163040B25';
+            
+            // Generate dynamic QRIS string with the exact amount
+            const dynamicQrisStr = makeDynamicQris(staticQrisData, finalAmount);
+            const dynamicQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(dynamicQrisStr)}`;
+
             const deposit = await Deposit.create({
                 id: depositId,
                 userId: userId,
@@ -1241,10 +1277,10 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
                 uniqueCode: uniqueCode,
                 totalAmount: finalAmount,
                 status: 'Pending',
-                qrUrl: staticQrUrl
+                qrUrl: dynamicQrUrl
             });
 
-            console.log(`[QRIS Request - Static] Agen ${user.username} mengajukan deposit QRIS ${finalAmount} (ID: ${depositId})`);
+            console.log(`[QRIS Request - Static Dynamic] Agen ${user.username} mengajukan deposit QRIS ${finalAmount} (ID: ${depositId})`);
             return res.json({
                 success: true,
                 deposit,
