@@ -1022,14 +1022,7 @@ function setupListeners() {
                     document.getElementById('qris-amount').textContent = formatRupiah(data.deposit.totalAmount);
                     
                     const btnSim = document.getElementById('btn-simulate-pay');
-                    if (btnSim) {
-                        if (data.isMock) {
-                            btnSim.style.display = 'block';
-                            btnSim.setAttribute('data-id', data.deposit.id);
-                        } else {
-                            btnSim.style.display = 'none';
-                        }
-                    }
+                    if (btnSim) btnSim.style.display = 'none';
                     
                     document.getElementById('qris-modal').classList.add('show');
                     await loadActiveDeposit(); // Refresh widget
@@ -3113,14 +3106,7 @@ function checkAndShowActiveDepositModal() {
             document.getElementById('qris-amount').textContent = formatRupiah(state.activeDeposit.totalAmount);
             
             const btnSim = document.getElementById('btn-simulate-pay');
-            if (btnSim) {
-                if (state.activeDeposit.id.startsWith('DEPQRIS')) {
-                    btnSim.style.display = 'block';
-                    btnSim.setAttribute('data-id', state.activeDeposit.id);
-                } else {
-                    btnSim.style.display = 'none';
-                }
-            }
+            if (btnSim) btnSim.style.display = 'none';
             
             const qMod = document.getElementById('qris-modal');
             if (qMod) qMod.classList.add('show');
