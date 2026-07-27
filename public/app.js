@@ -38,6 +38,7 @@ let state = {
 
 // Global reference for active Tripay checkout
 let activeTripayInvoice = null;
+let qrisTimerInterval = null;
 
 // Format currency
 function formatRupiah(value) {
