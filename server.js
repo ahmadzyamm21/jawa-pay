@@ -1298,8 +1298,9 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
                         merchant_key: process.env.QRISIFY_API_KEY
                     }, {
                         headers: {
-                            'Authorization': `Bearer ${process.env.QRISIFY_API_KEY}`,
-                            'X-API-KEY': process.env.QRISIFY_API_KEY,
+                            'x-api-key': process.env.QRISIFY_API_KEY.trim(),
+                            'Authorization': `Bearer ${process.env.QRISIFY_API_KEY.trim()}`,
+                            'X-API-KEY': process.env.QRISIFY_API_KEY.trim(),
                             'Content-Type': 'application/json'
                         },
                         timeout: 4000
