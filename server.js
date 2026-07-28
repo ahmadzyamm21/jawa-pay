@@ -1270,7 +1270,65 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
         const depositId = 'DEPQRIS' + Date.now();
         const totalAmount = parseInt(amount);
 
-        // Instant & Reliable QRIS Deposit Generation (Exact Unique Code Matching)
+        // Official Qrisify Direct Integration per llms.txt
+        if (process.env.QRISIFY_API_KEY && process.env.QRISIFY_API_KEY.trim()) {
+            try {
+                const webhookUrl = process.env.APP_URL 
+                    ? `${process.env.APP_URL}/api/payment/callback/qrisify` 
+                    : 'https://jawapay.my.id/api/payment/callback/qrisify';
+                
+                const qrisifyRes = await axios.post('https://qrisify.adihub.my.id/api/v1/transactions', {
+                    external_id: depositId,
+                    amount: parseInt(amount),
+                    webhook_url: webhookUrl
+                }, {
+                    headers: {
+                        'x-api-key': process.env.QRISIFY_API_KEY.trim(),
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 5000
+                });
+
+                console.log('[Qrisify Official API Response]:', JSON.stringify(qrisifyRes.data));
+
+                if (qrisifyRes.data && qrisifyRes.data.success && qrisifyRes.data.data) {
+                    const qData = qrisifyRes.data.data;
+                    const finalAmount = qData.amount_total || (parseInt(amount) + (qData.unique_code || 0));
+                    const uniqueCode = qData.unique_code || 0;
+                    
+                    let qrUrl = null;
+                    if (qData.qris_string) {
+                        qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qData.qris_string)}`;
+                    } else if (qData.qr_image_url) {
+                        qrUrl = qData.qr_image_url.startsWith('http') ? qData.qr_image_url : `https://qrisify.adihub.my.id${qData.qr_image_url}`;
+                    }
+
+                    if (qrUrl) {
+                        const deposit = await Deposit.create({
+                            id: depositId,
+                            userId: userId,
+                            bankName: 'QRIS',
+                            amount: parseInt(amount),
+                            uniqueCode: uniqueCode,
+                            totalAmount: finalAmount,
+                            status: 'Pending',
+                            qrUrl: qrUrl
+                        });
+
+                        console.log(`[QRIS Official Qrisify OK] Deposit ${depositId} (Rp ${finalAmount}) created for ${user.username}`);
+                        return res.json({
+                            success: true,
+                            deposit,
+                            isMock: false
+                        });
+                    }
+                }
+            } catch (qErr) {
+                console.log('[Qrisify Official API Error]:', qErr.response ? JSON.stringify(qErr.response.data) : qErr.message);
+            }
+        }
+
+        // Reliable Local Fallback: Dynamic EMVCo QRIS Generation (Exact Unique Code Matching)
         let uniqueCode = Math.floor(10 + Math.random() * 90);
         let finalAmount = parseInt(amount) + uniqueCode;
         
@@ -1300,7 +1358,7 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
             qrUrl: dynamicQrUrl
         });
 
-        console.log(`[QRIS Request OK] Tiket QRIS Rp ${finalAmount} berhasil dibuat untuk agen ${user.username} (ID: ${depositId})`);
+        console.log(`[QRIS Fallback OK] Tiket QRIS Rp ${finalAmount} berhasil dibuat untuk agen ${user.username} (ID: ${depositId})`);
         return res.json({
             success: true,
             deposit,
@@ -1622,8 +1680,10 @@ const handleQrisifyCallback = async (req, res) => {
     const payload = { ...req.query, ...req.body };
     console.log(`[Qrisify Callback ${req.method}] Payload:`, JSON.stringify(payload));
 
-    const orderId = payload.merchant_ref || payload.order_id || payload.ref_id || payload.unique_code || payload.id;
-    let rawAmount = payload.amount || payload.nominal || payload.gross_amount || payload.total_amount || payload.price || payload.value || payload.jumlah || payload.bayar || 0;
+    const dataObj = payload.data || payload;
+    const orderId = dataObj.external_id || payload.external_id || payload.merchant_ref || payload.order_id || payload.ref_id || payload.unique_code || payload.id;
+    let rawAmount = dataObj.amount_total || dataObj.amount_requested || payload.amount || payload.nominal || payload.gross_amount || payload.total_amount || payload.price || payload.value || payload.jumlah || payload.bayar || 0;
+    
     let amount = 0;
     if (typeof rawAmount === 'number') {
         amount = Math.round(rawAmount);
@@ -1632,7 +1692,7 @@ const handleQrisifyCallback = async (req, res) => {
         amount = parseInt(cleanStr || '0');
     }
 
-    const status = payload.status || payload.transaction_status || 'paid';
+    const status = dataObj.status || payload.status || payload.transaction_status || 'SUCCESS';
     const isSuccess = ['success', 'paid', 'sukses', 'success_payment', 'settlement', 'completed', 'done', 'lunas', 'ok'].includes(String(status).toLowerCase());
 
     if (isSuccess || amount > 0) {
