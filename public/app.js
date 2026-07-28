@@ -3273,7 +3273,6 @@ async function loadAdminDeposits() {
                     actionBtns = `
                         <div style="display: flex; gap: 6px; justify-content: center;">
                             <button onclick="handleAdminApproveDeposit('${d.id}')" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i data-lucide="check" style="width: 12px; height: 12px;"></i> Setujui</button>
-                            <button onclick="handleAdminSimulateCallback('${d.id}', ${d.totalAmount})" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;" title="Tes Sinyal Callback Otomatis Qrisify"><i data-lucide="zap" style="width: 12px; height: 12px;"></i> Tes Sinyal Auto</button>
                             <button onclick="handleAdminRejectDeposit('${d.id}')" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i data-lucide="x" style="width: 12px; height: 12px;"></i> Tolak</button>
                         </div>
                     `;
@@ -3307,8 +3306,6 @@ async function loadAdminDeposits() {
 }
 
 async function handleAdminApproveDeposit(id) {
-    if (!confirm('Apakah Anda yakin ingin menyetujui deposit ini? Saldo agen akan otomatis ditambahkan.')) return;
-    
     try {
         const token = getToken();
         const res = await fetch(apiUrl(`/api/admin/deposits/${id}/approve`), {
@@ -3320,20 +3317,18 @@ async function handleAdminApproveDeposit(id) {
         const data = await res.json();
         
         if (res.ok && data.success) {
-            alert(data.message || 'Deposit berhasil disetujui.');
+            showToast(data.message || 'Deposit berhasil disetujui.', 'success');
             await loadAdminDeposits();
         } else {
-            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+            showToast('Gagal: ' + (data.error || 'Terjadi kesalahan'), 'error');
         }
     } catch (err) {
         console.error('Approve deposit error:', err);
-        alert('Gagal memproses persetujuan deposit.');
+        showToast('Gagal memproses persetujuan deposit.', 'error');
     }
 }
 
 async function handleAdminRejectDeposit(id) {
-    if (!confirm('Apakah Anda yakin ingin menolak pengajuan deposit ini?')) return;
-    
     try {
         const token = getToken();
         const res = await fetch(apiUrl(`/api/admin/deposits/${id}/reject`), {
@@ -3345,14 +3340,14 @@ async function handleAdminRejectDeposit(id) {
         const data = await res.json();
         
         if (res.ok && data.success) {
-            alert(data.message || 'Deposit berhasil ditolak.');
+            showToast(data.message || 'Deposit berhasil ditolak.', 'info');
             await loadAdminDeposits();
         } else {
-            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+            showToast('Gagal: ' + (data.error || 'Terjadi kesalahan'), 'error');
         }
     } catch (err) {
         console.error('Reject deposit error:', err);
-        alert('Gagal memproses penolakan deposit.');
+        showToast('Gagal memproses penolakan deposit.', 'error');
     }
 }
 
