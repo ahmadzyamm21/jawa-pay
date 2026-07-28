@@ -2980,14 +2980,9 @@ initDb.then(() => {
                 ahmadUser.role = 'admin';
                 needsSave = true;
             }
-            // Force reset password of seed admin user to default for convenience
-            if (ahmadUser.password !== hashPassword('password123')) {
-                ahmadUser.password = hashPassword('password123');
-                needsSave = true;
-            }
             if (needsSave) {
                 await ahmadUser.save();
-                console.log('[Sequelize Repair] Akun demo ahmad diperbarui (isVerified: true, role: admin, password reset).');
+                console.log('[Sequelize Repair] Akun demo ahmad diperbarui (isVerified: true, role: admin).');
             }
         }
     }
