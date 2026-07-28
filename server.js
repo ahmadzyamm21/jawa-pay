@@ -1574,23 +1574,16 @@ app.post('/api/payment/callback/moota', async (req, res) => {
     }
 });
 
-// Qrisify Webhook Callback (Smart Amount & OrderId Auto-Approve)
-app.post('/api/payment/callback/qrisify', async (req, res) => {
-    const { secret } = req.query;
-    const qrisifySecret = process.env.QRISIFY_SECRET || 'jawapay_qrisify_secret';
-    
-    if (secret && secret !== qrisifySecret) {
-        return res.status(401).json({ error: 'Unauthorized callback.' });
-    }
+// Qrisify Webhook Callback (Smart Amount & OrderId Auto-Approve, GET + POST)
+const handleQrisifyCallback = async (req, res) => {
+    const payload = { ...req.query, ...req.body };
+    console.log(`[Qrisify Callback ${req.method}] Payload:`, JSON.stringify(payload));
 
-    const payload = req.body || {};
-    console.log('[Qrisify Callback] Payload:', JSON.stringify(payload));
-
-    const orderId = payload.merchant_ref || payload.order_id || payload.ref_id || payload.unique_code;
-    const amount = Math.round(parseFloat(payload.amount || payload.nominal || payload.gross_amount || payload.total_amount || payload.price || 0));
+    const orderId = payload.merchant_ref || payload.order_id || payload.ref_id || payload.unique_code || payload.id;
+    const amount = Math.round(parseFloat(payload.amount || payload.nominal || payload.gross_amount || payload.total_amount || payload.price || payload.value || payload.jumlah || payload.bayar || 0));
     const status = payload.status || payload.transaction_status || 'paid';
 
-    const isSuccess = ['success', 'paid', 'sukses', 'success_payment', 'settlement', 'completed'].includes(String(status).toLowerCase());
+    const isSuccess = ['success', 'paid', 'sukses', 'success_payment', 'settlement', 'completed', 'done', 'lunas', 'ok'].includes(String(status).toLowerCase());
 
     if (isSuccess) {
         try {
@@ -1621,9 +1614,10 @@ app.post('/api/payment/callback/qrisify', async (req, res) => {
                             console.log(`[Qrisify Callback] Auto-approved Deposit ${lockedDeposit.id} for ${user.username}. Balance added: Rp ${lockedDeposit.totalAmount}`);
                         }
                     });
+                    return res.json({ success: true, message: 'Deposit approved and balance added.' });
                 }
             } else {
-                console.warn(`[Qrisify Callback Warning] No pending deposit found for orderId "${orderId}" or amount Rp ${amount}`);
+                console.warn(`[Qrisify Callback Warning] No pending deposit found matching orderId "${orderId}" or amount Rp ${amount}`);
             }
         } catch (err) {
             console.error('Error processing Qrisify callback:', err);
@@ -1632,7 +1626,10 @@ app.post('/api/payment/callback/qrisify', async (req, res) => {
     }
 
     res.json({ success: true });
-});
+};
+
+app.post('/api/payment/callback/qrisify', handleQrisifyCallback);
+app.get('/api/payment/callback/qrisify', handleQrisifyCallback);
 
 // Mock Webhook Callback (For local sandbox/mock testing)
 app.post('/api/payment/mock-callback', async (req, res) => {
