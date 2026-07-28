@@ -911,17 +911,16 @@ function setupListeners() {
     if (DOM.btnTopup) {
         DOM.btnTopup.addEventListener('click', () => {
             if (state.activeDeposit) {
-                showTopupInstructions(state.activeDeposit, state.bankAccounts);
+                checkAndShowActiveDepositModal();
             } else {
                 document.getElementById('topup-form-content').style.display = 'block';
                 document.getElementById('topup-instruction-box').style.display = 'none';
                 if (DOM.topupAmountInput) DOM.topupAmountInput.value = '';
-            }
-            if (DOM.topupModal) {
-                DOM.topupModal.classList.add('show');
-                // Force visibility as fallback for CSP/extension conflicts
-                DOM.topupModal.style.opacity = '1';
-                DOM.topupModal.style.pointerEvents = 'auto';
+                if (DOM.topupModal) {
+                    DOM.topupModal.classList.add('show');
+                    DOM.topupModal.style.opacity = '1';
+                    DOM.topupModal.style.pointerEvents = 'auto';
+                }
             }
         });
     } else {
