@@ -219,6 +219,7 @@ async function checkAuth() {
                 await fetchPaymentChannels();
                 renderProducts();
                 await loadActiveDeposit();
+                startAutoSyncPolling();
             } else {
                 // Invalid token
                 logout();
@@ -1746,6 +1747,25 @@ async function syncUserProfile() {
     } catch (err) {
         console.error(err);
     }
+}
+
+// Start background auto-sync polling every 4 seconds when user is logged in
+let autoSyncInterval = null;
+function startAutoSyncPolling() {
+    if (autoSyncInterval) return;
+    autoSyncInterval = setInterval(async () => {
+        const token = getToken();
+        if (!token) return;
+        
+        const previousActiveDeposit = state.activeDeposit;
+        await syncUserProfile();
+        await loadActiveDeposit();
+        
+        if (previousActiveDeposit && !state.activeDeposit) {
+            closeAllModals();
+            alert('🎉 Pembayaran Berhasil!\nSaldo Anda telah otomatis masuk dan bertambah ke akun Anda.');
+        }
+    }, 4000);
 }
 
 function resetForm() {
