@@ -949,8 +949,8 @@ function setupListeners() {
     DOM.btnSaveTopup.addEventListener('click', async () => {
         const amount = parseInt(DOM.topupAmountInput.value);
         const bankName = document.getElementById('topup-bank-select').value;
-        if (!amount || isNaN(amount) || amount < 10000) {
-            alert('Minimal pengisian deposit adalah Rp 10.000');
+        if (!amount || isNaN(amount) || amount < 2000) {
+            alert('Minimal pengisian deposit adalah Rp 2.000');
             return;
         }
 

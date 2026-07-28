@@ -1008,8 +1008,8 @@ app.post('/api/deposits/request', authenticateToken, async (req, res) => {
     const { amount, bankName } = req.body;
     const userId = req.user.id;
 
-    if (!amount || isNaN(amount) || parseInt(amount) < 10000) {
-        return res.status(400).json({ error: 'Minimal pengajuan deposit adalah Rp 10.000.' });
+    if (!amount || isNaN(amount) || parseInt(amount) < 2000) {
+        return res.status(400).json({ error: 'Minimal deposit adalah Rp 2.000.' });
     }
     if (!bankName || !['BCA', 'MANDIRI', 'BRI'].includes(bankName.toUpperCase().trim())) {
         return res.status(400).json({ error: 'Metode bank transfer tidak didukung.' });
@@ -1080,8 +1080,8 @@ app.post('/api/deposits/request-midtrans', authenticateToken, async (req, res) =
     const { amount } = req.body;
     const userId = req.user.id;
 
-    if (!amount || isNaN(amount) || parseInt(amount) < 10000) {
-        return res.status(400).json({ error: 'Minimal pengisian deposit adalah Rp 10.000.' });
+    if (!amount || isNaN(amount) || parseInt(amount) < 2000) {
+        return res.status(400).json({ error: 'Minimal pengisian deposit adalah Rp 2.000.' });
     }
 
     try {
@@ -1248,8 +1248,8 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
     const { amount } = req.body;
     const userId = req.user.id;
 
-    if (!amount || isNaN(amount) || amount < 10000) {
-        return res.status(400).json({ error: 'Minimal pengajuan deposit adalah Rp 10.000.' });
+    if (!amount || isNaN(amount) || amount < 2000) {
+        return res.status(400).json({ error: 'Minimal pengajuan deposit adalah Rp 2.000.' });
     }
 
     try {
