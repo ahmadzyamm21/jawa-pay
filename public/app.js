@@ -1072,9 +1072,11 @@ function setupListeners() {
 
     const btnTopupDone = document.getElementById('btn-topup-done');
     if (btnTopupDone) {
-        btnTopupDone.addEventListener('click', () => {
+        btnTopupDone.addEventListener('click', async () => {
             closeAllModals();
-            alert('Sistem sedang memproses verifikasi otomatis (Saldo Anda akan bertambah otomatis 1-4 detik setelah pembayaran QRIS berhasil).');
+            showToast('Sistem sedang memverifikasi pembayaran otomatis Anda... ⏳', 'info');
+            await syncUserProfile();
+            await loadActiveDeposit();
         });
     }
 
@@ -1748,6 +1750,32 @@ async function syncUserProfile() {
     }
 }
 
+// Non-blocking Toast Notification Helper
+function showToast(message, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.style.cssText = `padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 700; color: white; background: ${type === 'success' ? '#10b981' : '#3b82f6'}; box-shadow: 0 8px 24px rgba(0,0,0,0.3); transition: all 0.3s ease; pointer-events: auto; opacity: 0; transform: translateY(-10px);`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    }, 10);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+
 // Start background auto-sync polling every 4 seconds when user is logged in
 let autoSyncInterval = null;
 function startAutoSyncPolling() {
@@ -1762,7 +1790,7 @@ function startAutoSyncPolling() {
         
         if (previousActiveDeposit && !state.activeDeposit) {
             closeAllModals();
-            alert('🎉 Pembayaran Berhasil!\nSaldo Anda telah otomatis masuk dan bertambah ke akun Anda.');
+            showToast('🎉 Pembayaran Berhasil! Saldo Anda telah otomatis masuk.', 'success');
         }
     }, 4000);
 }
