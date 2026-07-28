@@ -1574,7 +1574,7 @@ app.post('/api/payment/callback/moota', async (req, res) => {
     }
 });
 
-// Qrisify Webhook Callback
+// Qrisify Webhook Callback (Smart Amount & OrderId Auto-Approve)
 app.post('/api/payment/callback/qrisify', async (req, res) => {
     const { secret } = req.query;
     const qrisifySecret = process.env.QRISIFY_SECRET || 'jawapay_qrisify_secret';
@@ -1583,34 +1583,47 @@ app.post('/api/payment/callback/qrisify', async (req, res) => {
         return res.status(401).json({ error: 'Unauthorized callback.' });
     }
 
-    const payload = req.body;
+    const payload = req.body || {};
     console.log('[Qrisify Callback] Payload:', JSON.stringify(payload));
 
     const orderId = payload.merchant_ref || payload.order_id || payload.ref_id || payload.unique_code;
-    const status = payload.status || payload.transaction_status;
+    const amount = Math.round(parseFloat(payload.amount || payload.nominal || payload.gross_amount || payload.total_amount || payload.price || 0));
+    const status = payload.status || payload.transaction_status || 'paid';
 
-    if (!orderId) {
-        return res.status(400).json({ error: 'Order ID is missing.' });
-    }
-
-    const isSuccess = ['success', 'paid', 'sukses', 'success_payment', 'settlement'].includes(String(status).toLowerCase());
+    const isSuccess = ['success', 'paid', 'sukses', 'success_payment', 'settlement', 'completed'].includes(String(status).toLowerCase());
 
     if (isSuccess) {
         try {
-            const deposit = await Deposit.findOne({ where: { id: orderId, status: 'Pending' } });
+            let deposit = null;
+            if (orderId) {
+                deposit = await Deposit.findOne({ where: { id: orderId, status: 'Pending' } });
+            }
+            if (!deposit && amount > 0) {
+                deposit = await Deposit.findOne({ where: { totalAmount: amount, status: 'Pending' } });
+            }
+
             if (deposit) {
                 const user = await User.findByPk(deposit.userId);
                 if (user) {
                     await sequelize.transaction(async (t) => {
-                        deposit.status = 'Sukses';
-                        deposit.sn = 'QRISIFY-' + (payload.trx_id || payload.reference || Date.now());
-                        await deposit.save({ transaction: t });
+                        const lockedDeposit = await Deposit.findOne({
+                            where: { id: deposit.id, status: 'Pending' },
+                            transaction: t,
+                            lock: true
+                        });
+                        if (lockedDeposit) {
+                            lockedDeposit.status = 'Sukses';
+                            lockedDeposit.sn = 'QRISIFY-' + (payload.trx_id || payload.reference || Date.now());
+                            await lockedDeposit.save({ transaction: t });
 
-                        user.balance += deposit.totalAmount;
-                        await user.save({ transaction: t });
+                            user.balance += lockedDeposit.totalAmount;
+                            await user.save({ transaction: t });
+                            console.log(`[Qrisify Callback] Auto-approved Deposit ${lockedDeposit.id} for ${user.username}. Balance added: Rp ${lockedDeposit.totalAmount}`);
+                        }
                     });
-                    console.log(`[Qrisify Callback] Deposit ${orderId} SUCCESS. Saldo ${user.username} bertambah Rp ${deposit.totalAmount}`);
                 }
+            } else {
+                console.warn(`[Qrisify Callback Warning] No pending deposit found for orderId "${orderId}" or amount Rp ${amount}`);
             }
         } catch (err) {
             console.error('Error processing Qrisify callback:', err);
