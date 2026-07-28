@@ -1291,16 +1291,11 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
                 let qrUrl = null;
                 try {
                     const qrisifyRes = await axios.post(qrisifyApiUrl, {
-                        merchant_ref: depositId,
-                        amount: finalAmount,
-                        note: `Deposit Jawa Pay ${depositId}`,
-                        api_key: process.env.QRISIFY_API_KEY,
-                        merchant_key: process.env.QRISIFY_API_KEY
+                        amount: parseInt(finalAmount),
+                        merchant_ref: depositId
                     }, {
                         headers: {
                             'x-api-key': process.env.QRISIFY_API_KEY.trim(),
-                            'Authorization': `Bearer ${process.env.QRISIFY_API_KEY.trim()}`,
-                            'X-API-KEY': process.env.QRISIFY_API_KEY.trim(),
                             'Content-Type': 'application/json'
                         },
                         timeout: 4000
