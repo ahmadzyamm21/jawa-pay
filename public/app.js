@@ -1023,10 +1023,15 @@ function setupListeners() {
                     
                     const btnSimSandbox = document.getElementById('btn-simulate-qris-sandbox');
                     if (btnSimSandbox) {
-                        btnSimSandbox.setAttribute('data-id', data.deposit.id);
-                        btnSimSandbox.onclick = () => {
-                            simulateQrisDepositSuccess(data.deposit.id);
-                        };
+                        if (state.user && state.user.role === 'admin') {
+                            btnSimSandbox.style.display = 'flex';
+                            btnSimSandbox.setAttribute('data-id', data.deposit.id);
+                            btnSimSandbox.onclick = () => {
+                                simulateQrisDepositSuccess(data.deposit.id);
+                            };
+                        } else {
+                            btnSimSandbox.style.display = 'none';
+                        }
                     }
                     
                     document.getElementById('qris-modal').classList.add('show');
@@ -3160,10 +3165,15 @@ function checkAndShowActiveDepositModal() {
             
             const btnSimSandbox = document.getElementById('btn-simulate-qris-sandbox');
             if (btnSimSandbox) {
-                btnSimSandbox.setAttribute('data-id', state.activeDeposit.id);
-                btnSimSandbox.onclick = () => {
-                    simulateQrisDepositSuccess(state.activeDeposit.id);
-                };
+                if (state.user && state.user.role === 'admin') {
+                    btnSimSandbox.style.display = 'flex';
+                    btnSimSandbox.setAttribute('data-id', state.activeDeposit.id);
+                    btnSimSandbox.onclick = () => {
+                        simulateQrisDepositSuccess(state.activeDeposit.id);
+                    };
+                } else {
+                    btnSimSandbox.style.display = 'none';
+                }
             }
             
             const qMod = document.getElementById('qris-modal');
