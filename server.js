@@ -1293,7 +1293,9 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
                     const qrisifyRes = await axios.post(qrisifyApiUrl, {
                         merchant_ref: depositId,
                         amount: finalAmount,
-                        note: `Deposit Jawa Pay ${depositId}`
+                        note: `Deposit Jawa Pay ${depositId}`,
+                        api_key: process.env.QRISIFY_API_KEY,
+                        merchant_key: process.env.QRISIFY_API_KEY
                     }, {
                         headers: {
                             'Authorization': `Bearer ${process.env.QRISIFY_API_KEY}`,
