@@ -1270,85 +1270,42 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
         const depositId = 'DEPQRIS' + Date.now();
         const totalAmount = parseInt(amount);
 
-        // Direct Qrisify API Integration (Cloud Automatic Without Phone App)
-        if (process.env.QRISIFY_API_KEY) {
-            try {
-                let uniqueCode = Math.floor(10 + Math.random() * 90);
-                let finalAmount = parseInt(amount) + uniqueCode;
-                
-                let retries = 0;
-                while (retries < 15) {
-                    const duplicate = await Deposit.findOne({
-                        where: { totalAmount: finalAmount, status: 'Pending' }
-                    });
-                    if (!duplicate) break;
-                    uniqueCode = Math.floor(10 + Math.random() * 90);
-                    finalAmount = parseInt(amount) + uniqueCode;
-                    retries++;
-                }
-
-                const endpoints = [
-                    process.env.QRISIFY_API_URL || 'https://qrisify.adihub.my.id/api/v1/transactions',
-                    'https://qrisify.adihub.my.id/api/v1/qris',
-                    'https://qrisify.adihub.my.id/api/v1/qris/create'
-                ];
-                let qrUrl = null;
-                for (const qrisifyApiUrl of endpoints) {
-                    try {
-                        const qrisifyRes = await axios.post(qrisifyApiUrl, {
-                            amount: parseInt(finalAmount),
-                            merchant_ref: depositId,
-                            reference: depositId
-                        }, {
-                            headers: {
-                                'x-api-key': process.env.QRISIFY_API_KEY.trim(),
-                                'Authorization': `Bearer ${process.env.QRISIFY_API_KEY.trim()}`,
-                                'Content-Type': 'application/json'
-                            },
-                            timeout: 3000
-                        });
-                        console.log(`[Qrisify API ${qrisifyApiUrl} Response]:`, JSON.stringify(qrisifyRes.data));
-                        if (qrisifyRes.data && (qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl || qrisifyRes.data.qr_string || qrisifyRes.data.qr_code || (qrisifyRes.data.data && qrisifyRes.data.data.qr_url))) {
-                            const rawQr = qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl || qrisifyRes.data.qr_code || (qrisifyRes.data.data ? qrisifyRes.data.data.qr_url : null);
-                            qrUrl = rawQr;
-                            if (!qrUrl && (qrisifyRes.data.qr_string || (qrisifyRes.data.data && qrisifyRes.data.data.qr_string))) {
-                                const qrStr = qrisifyRes.data.qr_string || qrisifyRes.data.data.qr_string;
-                                qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrStr)}`;
-                            }
-                            if (qrUrl) break;
-                        }
-                    } catch (qErr) {
-                        console.log(`[Qrisify API ${qrisifyApiUrl} Error]:`, qErr.response ? JSON.stringify(qErr.response.data) : qErr.message);
-                    }
-                }
-
-                if (!qrUrl) {
-                    const staticQrisData = process.env.STATIC_QRIS_DATA || '00020101021126610014COM.GO-JEK.WWW01189360091436185850360210G6185850360303UMI51440014ID.CO.QRIS.WWW0215ID10265560348450303UMI5204481453033605802ID5924Jawapay, Pulsa & Tagihan6005BOGOR61051616262070703A0163040B25';
-                    const dynamicQrisStr = makeDynamicQris(staticQrisData, finalAmount);
-                    qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(dynamicQrisStr)}`;
-                }
-
-                const deposit = await Deposit.create({
-                    id: depositId,
-                    userId: userId,
-                    bankName: 'QRIS',
-                    amount: parseInt(amount),
-                    uniqueCode: uniqueCode,
-                    totalAmount: finalAmount,
-                    status: 'Pending',
-                    qrUrl: qrUrl
-                });
-
-                console.log(`[QRIS Request - Qrisify Direct] Agen ${user.username} mengajukan deposit QRIS ${finalAmount} (ID: ${depositId})`);
-                return res.json({
-                    success: true,
-                    deposit,
-                    isMock: false
-                });
-            } catch (err) {
-                console.error('[Qrisify API Error]:', err);
-            }
+        // Instant & Reliable QRIS Deposit Generation (Exact Unique Code Matching)
+        let uniqueCode = Math.floor(10 + Math.random() * 90);
+        let finalAmount = parseInt(amount) + uniqueCode;
+        
+        let retries = 0;
+        while (retries < 15) {
+            const duplicate = await Deposit.findOne({
+                where: { totalAmount: finalAmount, status: 'Pending' }
+            });
+            if (!duplicate) break;
+            uniqueCode = Math.floor(10 + Math.random() * 90);
+            finalAmount = parseInt(amount) + uniqueCode;
+            retries++;
         }
+
+        const staticQrisData = process.env.STATIC_QRIS_DATA || '00020101021126610014COM.GO-JEK.WWW01189360091436185850360210G6185850360303UMI51440014ID.CO.QRIS.WWW0215ID10265560348450303UMI5204481453033605802ID5924Jawapay, Pulsa & Tagihan6005BOGOR61051616262070703A0163040B25';
+        const dynamicQrisStr = makeDynamicQris(staticQrisData, finalAmount);
+        const dynamicQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(dynamicQrisStr)}`;
+
+        const deposit = await Deposit.create({
+            id: depositId,
+            userId: userId,
+            bankName: 'QRIS',
+            amount: parseInt(amount),
+            uniqueCode: uniqueCode,
+            totalAmount: finalAmount,
+            status: 'Pending',
+            qrUrl: dynamicQrUrl
+        });
+
+        console.log(`[QRIS Request OK] Tiket QRIS Rp ${finalAmount} berhasil dibuat untuk agen ${user.username} (ID: ${depositId})`);
+        return res.json({
+            success: true,
+            deposit,
+            isMock: false
+        });
 
         if (isTripayMock()) {
             // Static QRIS Mode (Using unique code)
