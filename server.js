@@ -2077,8 +2077,8 @@ app.post('/api/balance', authenticateToken, async (req, res) => {
     }
 });
 
-// Check Real H2H Digiflazz Supplier Deposit Balance (Protected)
-app.get('/api/digiflazz/deposit-balance', authenticateToken, async (req, res) => {
+// Check Real H2H Digiflazz Supplier Deposit Balance (Protected Admin Only)
+app.get('/api/digiflazz/deposit-balance', authenticateAdmin, async (req, res) => {
     try {
         if (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY) {
             return res.json({ deposit: 0, mode: 'Mock Mode' });

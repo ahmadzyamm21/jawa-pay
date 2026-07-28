@@ -1238,8 +1238,16 @@ function setupListeners() {
                 const currentAccent = localStorage.getItem('jawapay_accent') || 'indigo';
                 updateAccentSelectionUI(currentAccent);
 
-                // Fetch Digiflazz Deposit balance automatically when settings opened
-                fetchDigiflazzDepositBalance();
+                // Fetch Digiflazz Deposit balance ONLY for Admin accounts
+                const digiflazzContainer = document.getElementById('settings-digiflazz-container');
+                if (digiflazzContainer) {
+                    if (state.user && state.user.role === 'admin') {
+                        digiflazzContainer.style.display = 'block';
+                        fetchDigiflazzDepositBalance();
+                    } else {
+                        digiflazzContainer.style.display = 'none';
+                    }
+                }
 
                 DOM.settingsModal.classList.add('show');
             } else {
