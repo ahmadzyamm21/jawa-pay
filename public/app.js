@@ -206,9 +206,16 @@ async function checkAuth() {
                 DOM.landingContainer.style.display = 'none';
                 DOM.mainAppContainer.style.display = 'block';
                 
-                // Render details
                 DOM.agentName.textContent = state.user.name;
                 DOM.balanceValue.textContent = formatRupiah(state.balance);
+                
+                if (DOM.btnTopup) {
+                    if (state.user && state.user.role === 'admin') {
+                        DOM.btnTopup.style.display = 'none';
+                    } else {
+                        DOM.btnTopup.style.display = 'inline-flex';
+                    }
+                }
                 renderTransactions();
                 
                 // Automatically sync any pending transactions
