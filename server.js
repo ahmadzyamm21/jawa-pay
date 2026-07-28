@@ -1489,13 +1489,19 @@ app.post('/api/payment/callback/notification-reader', async (req, res) => {
 
         console.log(`[Notification Callback] Extracted Amount: Rp ${amount}`);
 
-        // Find the pending deposit matching the exact totalAmount
-        const deposit = await Deposit.findOne({
+        let deposit = await Deposit.findOne({
             where: {
                 totalAmount: amount,
                 status: 'Pending'
             }
         });
+
+        if (!deposit) {
+            deposit = await Deposit.findOne({
+                where: { status: 'Pending', bankName: 'QRIS' },
+                order: [['createdAt', 'DESC']]
+            });
+        }
 
         if (!deposit) {
             console.log(`[Notification Callback] No pending deposit found matching amount Rp ${amount}`);
@@ -1617,12 +1623,19 @@ const handleQrisifyCallback = async (req, res) => {
     console.log(`[Qrisify Callback ${req.method}] Payload:`, JSON.stringify(payload));
 
     const orderId = payload.merchant_ref || payload.order_id || payload.ref_id || payload.unique_code || payload.id;
-    const amount = Math.round(parseFloat(payload.amount || payload.nominal || payload.gross_amount || payload.total_amount || payload.price || payload.value || payload.jumlah || payload.bayar || 0));
-    const status = payload.status || payload.transaction_status || 'paid';
+    let rawAmount = payload.amount || payload.nominal || payload.gross_amount || payload.total_amount || payload.price || payload.value || payload.jumlah || payload.bayar || 0;
+    let amount = 0;
+    if (typeof rawAmount === 'number') {
+        amount = Math.round(rawAmount);
+    } else {
+        const cleanStr = String(rawAmount).replace(/[^\d]/g, '');
+        amount = parseInt(cleanStr || '0');
+    }
 
+    const status = payload.status || payload.transaction_status || 'paid';
     const isSuccess = ['success', 'paid', 'sukses', 'success_payment', 'settlement', 'completed', 'done', 'lunas', 'ok'].includes(String(status).toLowerCase());
 
-    if (isSuccess) {
+    if (isSuccess || amount > 0) {
         try {
             let deposit = null;
             if (orderId) {
@@ -1630,6 +1643,13 @@ const handleQrisifyCallback = async (req, res) => {
             }
             if (!deposit && amount > 0) {
                 deposit = await Deposit.findOne({ where: { totalAmount: amount, status: 'Pending' } });
+            }
+            if (!deposit) {
+                // Latest pending QRIS deposit fallback
+                deposit = await Deposit.findOne({
+                    where: { status: 'Pending', bankName: 'QRIS' },
+                    order: [['createdAt', 'DESC']]
+                });
             }
 
             if (deposit) {
