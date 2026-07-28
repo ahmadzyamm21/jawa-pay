@@ -3141,6 +3141,27 @@ function showTopupInstructions(deposit, bankAccounts) {
     if (btnCancel) btnCancel.setAttribute('data-id', deposit.id);
 }
 
+function updateBankSelectOptions(bankAccounts) {
+    const select = document.getElementById('topup-bank-select');
+    if (!select) return;
+
+    select.innerHTML = `
+        <option value="QRIS" selected>⚡ QRIS (Otomatis - Scan & Saldo Masuk Instan)</option>
+    `;
+
+    if (bankAccounts) {
+        if (bankAccounts.BCA && bankAccounts.BCA.number) {
+            select.innerHTML += `<option value="BCA">Bank BCA (${bankAccounts.BCA.number})</option>`;
+        }
+        if (bankAccounts.MANDIRI && bankAccounts.MANDIRI.number) {
+            select.innerHTML += `<option value="MANDIRI">Bank Mandiri (${bankAccounts.MANDIRI.number})</option>`;
+        }
+        if (bankAccounts.BRI && bankAccounts.BRI.number) {
+            select.innerHTML += `<option value="BRI">Bank BRI (${bankAccounts.BRI.number})</option>`;
+        }
+    }
+}
+
 async function loadActiveDeposit() {
     try {
         const token = getToken();
@@ -3154,6 +3175,7 @@ async function loadActiveDeposit() {
         const data = await res.json();
         if (data.success) {
             state.bankAccounts = data.bankAccounts;
+            updateBankSelectOptions(data.bankAccounts);
             const pending = data.deposits.find(d => d.status === 'Pending');
             
             const widget = document.getElementById('active-deposit-widget');
