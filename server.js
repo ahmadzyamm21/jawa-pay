@@ -1287,13 +1287,13 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
                     retries++;
                 }
 
-                const qrisifyApiUrl = process.env.QRISIFY_API_URL || 'https://qrisify.adihub.my.id/api/v1/qr/create';
+                const qrisifyApiUrl = process.env.QRISIFY_API_URL || 'https://qrisify.adihub.my.id/api/v1/transactions';
                 let qrUrl = null;
                 try {
                     const qrisifyRes = await axios.post(qrisifyApiUrl, {
                         merchant_ref: depositId,
                         amount: finalAmount,
-                        callback_url: 'https://jawapay.my.id/api/payment/callback/qrisify'
+                        note: `Deposit Jawa Pay ${depositId}`
                     }, {
                         headers: {
                             'Authorization': `Bearer ${process.env.QRISIFY_API_KEY}`,
