@@ -2522,7 +2522,7 @@ async function handleAdminAdjustBalance() {
     const action = document.getElementById('admin-balance-action-select').value;
     const amount = parseInt(document.getElementById('admin-balance-amount-input').value);
 
-    if (!amount || amount <= 0) {
+    if (isNaN(amount) || amount < 0) {
         alert('Masukkan jumlah nominal saldo yang valid.');
         return;
     }

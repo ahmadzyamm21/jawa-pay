@@ -752,7 +752,7 @@ app.put('/api/admin/users/:id/balance', authenticateAdmin, async (req, res) => {
     const { amount, action } = req.body; // action: 'add' or 'subtract'
     const targetUserId = req.params.id;
 
-    if (!amount || isNaN(amount) || parseInt(amount) <= 0) {
+    if (amount === undefined || isNaN(amount) || parseInt(amount) < 0) {
         return res.status(400).json({ error: 'Nominal penyesuaian tidak valid.' });
     }
 
@@ -768,12 +768,14 @@ app.put('/api/admin/users/:id/balance', authenticateAdmin, async (req, res) => {
                 return res.status(400).json({ error: 'Saldo agen tidak mencukupi untuk dikurangi.' });
             }
             user.balance -= adjustment;
+        } else if (action === 'set') {
+            user.balance = adjustment;
         } else {
             return res.status(400).json({ error: 'Aksi penyesuaian tidak valid.' });
         }
 
         await user.save();
-        console.log(`[Admin Balance] Admin (${req.user.username}) mengubah saldo ${user.username} (${action === 'add' ? '+' : '-'}${adjustment}) menjadi ${user.balance}`);
+        console.log(`[Admin Balance] Admin (${req.user.username}) mengubah saldo ${user.username} (action: ${action}, amount: ${adjustment}) menjadi ${user.balance}`);
 
         res.json({ success: true, balance: user.balance, message: 'Saldo agen berhasil disesuaikan.' });
     } catch (err) {
