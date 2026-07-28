@@ -2945,11 +2945,19 @@ async function handleSettingsChangePassword() {
 }
 
 async function simulateQrisDepositSuccess(depositId) {
-    if (!depositId) return;
+    if (!depositId && state.activeDeposit) {
+        depositId = state.activeDeposit.id;
+    }
+    if (!depositId) {
+        alert('ID Tiket deposit tidak ditemukan.');
+        return;
+    }
     
-    const btn = document.getElementById('btn-simulate-pay');
-    btn.disabled = true;
-    btn.innerHTML = '⏳ Memproses Callback...';
+    const btn = document.getElementById('btn-simulate-qris-sandbox') || document.getElementById('btn-simulate-pay');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Memproses Callback...';
+    }
 
     try {
         const res = await fetch(apiUrl('/api/payment/mock-callback'), {
@@ -2961,20 +2969,21 @@ async function simulateQrisDepositSuccess(depositId) {
         const data = await res.json();
 
         if (res.ok && data.success) {
-            alert('Simulasi Pembayaran QRIS Berhasil! Saldo Anda telah ditambahkan.');
+            alert('⚡ Mode Sandbox: Simulasi Pembayaran QRIS Berhasil!\nSaldo Anda telah bertambah 100% secara otomatis.');
             closeAllModals();
             await syncUserProfile();
             await loadActiveDeposit();
         } else {
-            alert('Gagal: ' + (data.error || 'Terjadi kesalahan'));
+            alert('Gagal simulasi: ' + (data.error || 'Terjadi kesalahan'));
         }
     } catch (err) {
         console.error('Error simulating QRIS success:', err);
         alert('Gagal mensimulasikan pembayaran.');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="check-circle" style="width: 16px; height: 16px;"></i> Simulasikan Pembayaran Sukses (Uji Coba)';
-        if (window.lucide) window.lucide.createIcons();
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '⚡ Simulasikan Bayar (Mode Sandbox / Uji Coba)';
+        }
     }
 }
 
@@ -3149,8 +3158,13 @@ function checkAndShowActiveDepositModal() {
             document.getElementById('qris-barcode-img').src = state.activeDeposit.qrUrl;
             document.getElementById('qris-amount').textContent = formatRupiah(state.activeDeposit.totalAmount);
             
-            const btnSim = document.getElementById('btn-simulate-pay');
-            if (btnSim) btnSim.style.display = 'none';
+            const btnSimSandbox = document.getElementById('btn-simulate-qris-sandbox');
+            if (btnSimSandbox) {
+                btnSimSandbox.setAttribute('data-id', state.activeDeposit.id);
+                btnSimSandbox.onclick = () => {
+                    simulateQrisDepositSuccess(state.activeDeposit.id);
+                };
+            }
             
             const qMod = document.getElementById('qris-modal');
             if (qMod) qMod.classList.add('show');
