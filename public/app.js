@@ -1021,8 +1021,13 @@ function setupListeners() {
                     document.getElementById('qris-barcode-img').src = data.deposit.qrUrl;
                     document.getElementById('qris-amount').textContent = formatRupiah(data.deposit.totalAmount);
                     
-                    const btnSim = document.getElementById('btn-simulate-pay');
-                    if (btnSim) btnSim.style.display = 'none';
+                    const btnSimSandbox = document.getElementById('btn-simulate-qris-sandbox');
+                    if (btnSimSandbox) {
+                        btnSimSandbox.setAttribute('data-id', data.deposit.id);
+                        btnSimSandbox.onclick = () => {
+                            simulateQrisDepositSuccess(data.deposit.id);
+                        };
+                    }
                     
                     document.getElementById('qris-modal').classList.add('show');
                     await loadActiveDeposit(); // Refresh widget
