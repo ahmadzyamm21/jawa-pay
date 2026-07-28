@@ -1070,12 +1070,11 @@ function setupListeners() {
         }
     });
 
-    // Handle widget buttons & modal actions
     const btnTopupDone = document.getElementById('btn-topup-done');
     if (btnTopupDone) {
         btnTopupDone.addEventListener('click', () => {
             closeAllModals();
-            alert('Terima kasih! Pemilik platform akan memverifikasi mutasi bank Anda secara manual. Saldo Anda akan bertambah jika transferan sudah terverifikasi.');
+            alert('Sistem sedang memproses verifikasi otomatis (Saldo Anda akan bertambah otomatis 1-4 detik setelah pembayaran QRIS berhasil).');
         });
     }
 
