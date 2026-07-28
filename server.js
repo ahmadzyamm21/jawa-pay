@@ -1297,18 +1297,20 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
                     }, {
                         headers: {
                             'Authorization': `Bearer ${process.env.QRISIFY_API_KEY}`,
+                            'X-API-KEY': process.env.QRISIFY_API_KEY,
                             'Content-Type': 'application/json'
                         },
                         timeout: 4000
                     });
-                    if (qrisifyRes.data && (qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl || qrisifyRes.data.qr_string)) {
-                        qrUrl = qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl;
+                    console.log('[Qrisify API Direct Response]:', JSON.stringify(qrisifyRes.data));
+                    if (qrisifyRes.data && (qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl || qrisifyRes.data.qr_string || qrisifyRes.data.qr_code)) {
+                        qrUrl = qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl || qrisifyRes.data.qr_code;
                         if (!qrUrl && qrisifyRes.data.qr_string) {
                             qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrisifyRes.data.qr_string)}`;
                         }
                     }
                 } catch (qErr) {
-                    console.log('[Qrisify API Direct] Using EMVCo dynamic QRIS for exact amount matching:', qErr.message);
+                    console.log('[Qrisify API Direct Error]:', qErr.response ? JSON.stringify(qErr.response.data) : qErr.message);
                 }
 
                 if (!qrUrl) {
