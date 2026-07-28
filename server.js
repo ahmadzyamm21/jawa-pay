@@ -1287,28 +1287,39 @@ app.post('/api/deposits/request-qris', authenticateToken, async (req, res) => {
                     retries++;
                 }
 
-                const qrisifyApiUrl = process.env.QRISIFY_API_URL || 'https://qrisify.adihub.my.id/api/v1/transactions';
+                const endpoints = [
+                    process.env.QRISIFY_API_URL || 'https://qrisify.adihub.my.id/api/v1/transactions',
+                    'https://qrisify.adihub.my.id/api/v1/qris',
+                    'https://qrisify.adihub.my.id/api/v1/qris/create'
+                ];
                 let qrUrl = null;
-                try {
-                    const qrisifyRes = await axios.post(qrisifyApiUrl, {
-                        amount: parseInt(finalAmount),
-                        merchant_ref: depositId
-                    }, {
-                        headers: {
-                            'x-api-key': process.env.QRISIFY_API_KEY.trim(),
-                            'Content-Type': 'application/json'
-                        },
-                        timeout: 4000
-                    });
-                    console.log('[Qrisify API Direct Response]:', JSON.stringify(qrisifyRes.data));
-                    if (qrisifyRes.data && (qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl || qrisifyRes.data.qr_string || qrisifyRes.data.qr_code)) {
-                        qrUrl = qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl || qrisifyRes.data.qr_code;
-                        if (!qrUrl && qrisifyRes.data.qr_string) {
-                            qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrisifyRes.data.qr_string)}`;
+                for (const qrisifyApiUrl of endpoints) {
+                    try {
+                        const qrisifyRes = await axios.post(qrisifyApiUrl, {
+                            amount: parseInt(finalAmount),
+                            merchant_ref: depositId,
+                            reference: depositId
+                        }, {
+                            headers: {
+                                'x-api-key': process.env.QRISIFY_API_KEY.trim(),
+                                'Authorization': `Bearer ${process.env.QRISIFY_API_KEY.trim()}`,
+                                'Content-Type': 'application/json'
+                            },
+                            timeout: 3000
+                        });
+                        console.log(`[Qrisify API ${qrisifyApiUrl} Response]:`, JSON.stringify(qrisifyRes.data));
+                        if (qrisifyRes.data && (qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl || qrisifyRes.data.qr_string || qrisifyRes.data.qr_code || (qrisifyRes.data.data && qrisifyRes.data.data.qr_url))) {
+                            const rawQr = qrisifyRes.data.qr_url || qrisifyRes.data.qrUrl || qrisifyRes.data.qr_code || (qrisifyRes.data.data ? qrisifyRes.data.data.qr_url : null);
+                            qrUrl = rawQr;
+                            if (!qrUrl && (qrisifyRes.data.qr_string || (qrisifyRes.data.data && qrisifyRes.data.data.qr_string))) {
+                                const qrStr = qrisifyRes.data.qr_string || qrisifyRes.data.data.qr_string;
+                                qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrStr)}`;
+                            }
+                            if (qrUrl) break;
                         }
+                    } catch (qErr) {
+                        console.log(`[Qrisify API ${qrisifyApiUrl} Error]:`, qErr.response ? JSON.stringify(qErr.response.data) : qErr.message);
                     }
-                } catch (qErr) {
-                    console.log('[Qrisify API Direct Error]:', qErr.response ? JSON.stringify(qErr.response.data) : qErr.message);
                 }
 
                 if (!qrUrl) {
