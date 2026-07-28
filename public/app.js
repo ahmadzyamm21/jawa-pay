@@ -3197,6 +3197,7 @@ async function loadAdminDeposits() {
                     actionBtns = `
                         <div style="display: flex; gap: 6px; justify-content: center;">
                             <button onclick="handleAdminApproveDeposit('${d.id}')" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i data-lucide="check" style="width: 12px; height: 12px;"></i> Setujui</button>
+                            <button onclick="handleAdminSimulateCallback('${d.id}', ${d.totalAmount})" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;" title="Tes Sinyal Callback Otomatis Qrisify"><i data-lucide="zap" style="width: 12px; height: 12px;"></i> Tes Sinyal Auto</button>
                             <button onclick="handleAdminRejectDeposit('${d.id}')" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i data-lucide="x" style="width: 12px; height: 12px;"></i> Tolak</button>
                         </div>
                     `;
@@ -3278,6 +3279,31 @@ async function handleAdminRejectDeposit(id) {
         alert('Gagal memproses penolakan deposit.');
     }
 }
+
+async function handleAdminSimulateCallback(id, amount) {
+    try {
+        const res = await fetch(apiUrl('/api/payment/callback/qrisify'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                merchant_ref: id,
+                amount: amount,
+                status: 'paid'
+            })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            alert('⚡ Mode Tes: Sinyal Webhook Qrisify Berhasil Disimulasikan!\nSaldo agen telah bertambah 100% secara otomatis.');
+            await loadAdminDeposits();
+        } else {
+            alert('Gagal simulasi: ' + (data.error || 'Terjadi kesalahan'));
+        }
+    } catch (err) {
+        console.error('Simulate callback error:', err);
+        alert('Gagal mengirim sinyal tes callback.');
+    }
+}
+window.handleAdminSimulateCallback = handleAdminSimulateCallback;
 
 // Expose admin actions to global window scope for inline onclick templates
 window.handleAdminApproveDeposit = handleAdminApproveDeposit;
