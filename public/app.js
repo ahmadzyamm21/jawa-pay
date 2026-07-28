@@ -2,7 +2,7 @@
 // For production: Change this to your deployed backend URL
 // For development: Use localhost
 const API_BASE_URL = window.location.protocol === 'file:' || window.location.protocol === 'capacitor:' 
-    ? 'https://jawa-pay.onrender.com'  // Backend production di Render
+    ? 'https://jawapay.my.id'  // Backend produksi di VPS
     : ''; // Empty string untuk web (relative path)
 
 // Helper function untuk API calls
